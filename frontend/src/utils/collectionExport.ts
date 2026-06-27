@@ -1,6 +1,6 @@
 import { requestBlob } from '@/api/http';
 import type { Collection } from '@/types/collection';
-import type { CollectionItem } from '@/types/collectionItem';
+import type { CollectionItem, PatternVariant } from '@/types/collectionItem';
 
 export type CollectionExportFormat = 'pdf' | 'excel';
 
@@ -59,9 +59,23 @@ function resolveLanguage(item: CollectionItem): string {
     return item.language || 'Sin idioma';
 }
 
+function resolvePatternVariantLabel(patternVariant: PatternVariant | null | undefined): string | null {
+    if (!patternVariant) {
+        return null;
+    }
+    if (patternVariant === 'poke_ball') {
+        return 'Poke Ball Pattern';
+    }
+    if (patternVariant === 'master_ball') {
+        return 'Master Ball Pattern';
+    }
+    return null;
+}
+
 function resolveFinish(item: CollectionItem): string {
     const finish = item.finish || 'Normal';
-    return item.is_pokeball ? `${finish} Pokeball` : finish;
+    const patternLabel = resolvePatternVariantLabel(item.pattern_variant);
+    return patternLabel ? `${finish} - ${patternLabel}` : finish;
 }
 
 async function blobToDataUrl(blob: Blob): Promise<string> {

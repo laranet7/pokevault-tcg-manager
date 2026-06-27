@@ -41,7 +41,7 @@ export function createCollectionItemWithImage(collectionId: number, payload: Cre
     appendFormValue(formData, 'language', payload.language);
     appendFormValue(formData, 'condition', payload.condition);
     appendFormValue(formData, 'finish', payload.finish);
-    appendFormValue(formData, 'is_pokeball', payload.is_pokeball ?? false);
+    appendFormValue(formData, 'pattern_variant', payload.pattern_variant);
     appendFormValue(formData, 'is_for_sale', payload.is_for_sale ?? false);
     appendFormValue(formData, 'base_price', payload.base_price);
     appendFormValue(formData, 'base_price_currency', payload.base_price_currency ?? 'USD');
@@ -83,7 +83,7 @@ export function createManualCollectionItem(collectionId: number, payload: Create
     appendFormValue(formData, 'language', payload.language);
     appendFormValue(formData, 'condition', payload.condition);
     appendFormValue(formData, 'finish', payload.finish);
-    appendFormValue(formData, 'is_pokeball', payload.is_pokeball ?? false);
+    appendFormValue(formData, 'pattern_variant', payload.pattern_variant);
     appendFormValue(formData, 'is_for_sale', payload.is_for_sale ?? false);
     appendFormValue(formData, 'base_price', payload.base_price);
     appendFormValue(formData, 'base_price_currency', payload.base_price_currency ?? 'USD');

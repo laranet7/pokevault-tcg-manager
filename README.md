@@ -88,7 +88,7 @@ Consulta tambien el historial funcional en [CHANGELOG.md](./CHANGELOG.md).
 - Idioma.
 - Estado.
 - Acabado.
-- Toggle Pokeball.
+- Patron especial para variantes como Poke Ball Pattern y Master Ball Pattern.
 - Precarga de acabado sugerido usando metadata y precios de la API cuando es posible.
 
 ### Imagenes de cartas

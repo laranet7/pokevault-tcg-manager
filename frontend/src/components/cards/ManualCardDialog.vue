@@ -3,7 +3,7 @@ import { createManualCollectionItem } from '@/api/collectionItemsApi';
 import { listCollections } from '@/api/collectionsApi';
 import { useAuth } from '@/stores/auth';
 import type { Collection } from '@/types/collection';
-import type { CreateManualCollectionItemPayload } from '@/types/collectionItem';
+import type { CreateManualCollectionItemPayload, PatternVariant } from '@/types/collectionItem';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 
@@ -16,8 +16,10 @@ type StoredAddPreferences = {
     language: string;
     condition: string;
     finish: string;
-    isPokeball: boolean;
+    patternVariant: PatternVariant | null;
 };
+
+type PatternVariantField = PatternVariant | 'none';
 
 type PrefilledManualCard = {
     name: string;
@@ -62,7 +64,7 @@ const itemForm = reactive({
     language: DEFAULT_LANGUAGE,
     condition: DEFAULT_CONDITION,
     finish: DEFAULT_FINISH,
-    is_pokeball: false,
+    pattern_variant: 'none' as PatternVariantField,
     is_for_sale: false,
     base_price: null as number | null,
     base_price_currency: 'USD',
@@ -79,6 +81,11 @@ const finishOptions = ['Normal', 'Holo', 'Reverse Holo', 'Full Art', 'Illustrati
     label: value,
     value
 }));
+const patternVariantOptions = [
+    { label: 'Sin patron especial', value: 'none' },
+    { label: 'Poke Ball Pattern', value: 'poke_ball' },
+    { label: 'Master Ball Pattern', value: 'master_ball' }
+];
 const saleStatusOptions = [
     { label: 'No disponible', value: 'not_available' },
     { label: 'Disponible', value: 'available' },
@@ -91,6 +98,21 @@ function getPreferencesKey(): string {
     return `pokevault:add-card-preferences:${state.user?.id ?? 'guest'}`;
 }
 
+function resolveLegacyPatternVariant(value: Partial<StoredAddPreferences> & { isPokeball?: boolean }): PatternVariant | null {
+    if (value.patternVariant) {
+        return value.patternVariant;
+    }
+    return value.isPokeball ? 'poke_ball' : null;
+}
+
+function resolvePatternVariantFieldValue(value: PatternVariant | null | undefined): PatternVariantField {
+    return value ?? 'none';
+}
+
+function serializePatternVariant(value: PatternVariantField): PatternVariant | null {
+    return value === 'none' ? null : value;
+}
+
 function readPreferences(): StoredAddPreferences {
     if (typeof window === 'undefined') {
         return {
@@ -98,7 +120,7 @@ function readPreferences(): StoredAddPreferences {
             language: DEFAULT_LANGUAGE,
             condition: DEFAULT_CONDITION,
             finish: DEFAULT_FINISH,
-            isPokeball: false
+            patternVariant: null
         };
     }
 
@@ -109,18 +131,21 @@ function readPreferences(): StoredAddPreferences {
             language: DEFAULT_LANGUAGE,
             condition: DEFAULT_CONDITION,
             finish: DEFAULT_FINISH,
-            isPokeball: false
+            patternVariant: null
         };
     }
 
     try {
+        const parsed = JSON.parse(rawValue) as Partial<StoredAddPreferences> & { isPokeball?: boolean };
+        const legacyPatternVariant = resolveLegacyPatternVariant(parsed);
+        const { patternVariant: _patternVariant, isPokeball: _isPokeball, ...restParsed } = parsed;
         return {
             collectionId: null,
             language: DEFAULT_LANGUAGE,
             condition: DEFAULT_CONDITION,
             finish: DEFAULT_FINISH,
-            isPokeball: false,
-            ...(JSON.parse(rawValue) as Partial<StoredAddPreferences>)
+            ...restParsed,
+            patternVariant: legacyPatternVariant
         };
     } catch {
         window.localStorage.removeItem(getPreferencesKey());
@@ -129,7 +154,7 @@ function readPreferences(): StoredAddPreferences {
             language: DEFAULT_LANGUAGE,
             condition: DEFAULT_CONDITION,
             finish: DEFAULT_FINISH,
-            isPokeball: false
+            patternVariant: null
         };
     }
 }
@@ -144,7 +169,7 @@ function persistPreferences(): void {
         language: itemForm.language,
         condition: itemForm.condition,
         finish: itemForm.finish,
-        isPokeball: itemForm.is_pokeball
+        patternVariant: serializePatternVariant(itemForm.pattern_variant)
     };
 
     window.localStorage.setItem(getPreferencesKey(), JSON.stringify(payload));
@@ -223,7 +248,7 @@ function resetForm(): void {
     itemForm.language = preferences.language || DEFAULT_LANGUAGE;
     itemForm.condition = preferences.condition || DEFAULT_CONDITION;
     itemForm.finish = preferences.finish || DEFAULT_FINISH;
-    itemForm.is_pokeball = itemForm.finish === 'Reverse Holo' ? Boolean(preferences.isPokeball) : false;
+    itemForm.pattern_variant = resolvePatternVariantFieldValue(preferences.patternVariant);
     itemForm.is_for_sale = false;
     itemForm.base_price = null;
     itemForm.base_price_currency = 'USD';
@@ -287,7 +312,7 @@ async function save(): Promise<void> {
         language: itemForm.language,
         condition: itemForm.condition,
         finish: itemForm.finish,
-        is_pokeball: itemForm.is_pokeball,
+        pattern_variant: serializePatternVariant(itemForm.pattern_variant),
         is_for_sale: itemForm.is_for_sale,
         base_price: itemForm.base_price,
         base_price_currency: itemForm.base_price_currency,
@@ -330,15 +355,6 @@ watch(
             await loadCollections();
         } else {
             clearImage();
-        }
-    }
-);
-
-watch(
-    () => itemForm.finish,
-    (finish) => {
-        if (finish !== 'Reverse Holo') {
-            itemForm.is_pokeball = false;
         }
     }
 );
@@ -423,11 +439,9 @@ onBeforeUnmount(() => {
                                     <Select v-model="itemForm.finish" :options="finishOptions" optionLabel="label" optionValue="value" class="w-full" />
                                 </div>
                                 <div class="col-span-12 md:col-span-6">
-                                    <label class="block text-sm mb-2">Variante Pokeball</label>
-                                    <div class="flex items-center gap-3 min-h-12 px-3 rounded-xl border border-surface-200 dark:border-surface-700">
-                                        <ToggleSwitch v-model="itemForm.is_pokeball" :disabled="itemForm.finish !== 'Reverse Holo'" />
-                                        <span>{{ itemForm.finish === 'Reverse Holo' ? (itemForm.is_pokeball ? 'Activada' : 'Desactivada') : 'Disponible solo para Reverse Holo' }}</span>
-                                    </div>
+                                    <label class="block text-sm mb-2">Patron especial</label>
+                                    <Select v-model="itemForm.pattern_variant" :options="patternVariantOptions" optionLabel="label" optionValue="value" class="w-full" />
+                                    <small class="text-surface-500 mt-2 block">Usalo para variantes como Poke Ball Pattern o Master Ball Pattern.</small>
                                 </div>
                                 <div class="col-span-12 md:col-span-3">
                                     <label class="block text-sm mb-2">Cantidad</label>

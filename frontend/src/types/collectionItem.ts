@@ -1,5 +1,7 @@
 import type { CardRead, CardUpsertPayload } from './card';
 
+export type PatternVariant = 'poke_ball' | 'master_ball';
+
 export interface CollectionItem {
     id: number;
     collection_id: number;
@@ -8,7 +10,7 @@ export interface CollectionItem {
     language: string | null;
     condition: string | null;
     finish: string | null;
-    is_pokeball: boolean;
+    pattern_variant: PatternVariant | null;
     is_for_sale: boolean;
     base_price: number | string | null;
     base_price_currency: string;
@@ -32,7 +34,7 @@ export interface CollectionItemPayload {
     language?: string | null;
     condition?: string | null;
     finish?: string | null;
-    is_pokeball?: boolean;
+    pattern_variant?: PatternVariant | null;
     is_for_sale?: boolean;
     base_price?: number | null;
     base_price_currency?: string;
@@ -59,7 +61,7 @@ export interface InventorySearchResult {
     language: string | null;
     condition: string | null;
     finish: string | null;
-    is_pokeball: boolean;
+    pattern_variant: PatternVariant | null;
     is_for_sale: boolean;
     base_price: number | string | null;
     base_price_currency: string;

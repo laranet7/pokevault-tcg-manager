@@ -227,7 +227,7 @@ class CollectionPricingService:
         for item in items:
             try:
                 payload = await self._get_card_payload(item.card.external_id, item.card.api_source, card_cache)
-                resolution = self._resolve_market_price(payload, item.finish, item.is_pokeball)
+                resolution = self._resolve_market_price(payload, item.finish, item.pattern_variant)
             except PokemonTCGServiceError:
                 items_failed += 1
                 continue
@@ -265,7 +265,7 @@ class CollectionPricingService:
                 cardmarket_currency=resolution.cardmarket_currency,
                 cardmarket_price_label=resolution.cardmarket_price_label,
                 finish=item.finish,
-                is_pokeball=item.is_pokeball,
+                pattern_variant=item.pattern_variant,
                 base_price=item.base_price,
                 sale_price=item.sale_price,
                 quantity=item.quantity,
@@ -444,7 +444,7 @@ class CollectionPricingService:
             cache[cache_key] = await self.pokemon_tcg_service.get_card_payload(external_id, api_source=api_source)
         return cache[cache_key]
 
-    def _resolve_market_price(self, payload: dict, finish: str | None, is_pokeball: bool = False) -> PriceResolution:
+    def _resolve_market_price(self, payload: dict, finish: str | None, pattern_variant: str | None = None) -> PriceResolution:
         tcgplayer_prices = ((payload.get("tcgplayer") or {}).get("prices") or {})
         cardmarket_prices = ((payload.get("cardmarket") or {}).get("prices") or {})
         finish_candidates = {
@@ -459,7 +459,7 @@ class CollectionPricingService:
 
         normalized_finish = (finish or "normal").strip().lower()
         candidates = finish_candidates.get(normalized_finish, ["normal", "holofoil", "reverseHolofoil"])
-        if normalized_finish == "reverse holo" and is_pokeball:
+        if normalized_finish == "reverse holo" and pattern_variant:
             candidates = ["reverseHolofoil", *candidates]
         fallback_labels = list(dict.fromkeys([*candidates, *tcgplayer_prices.keys()]))
 
@@ -476,17 +476,18 @@ class CollectionPricingService:
             tcgplayer_label = label
             break
 
-        cardmarket_price = self._resolve_cardmarket_price(cardmarket_prices, normalized_finish, is_pokeball)
+        cardmarket_price = self._resolve_cardmarket_price(cardmarket_prices, normalized_finish, pattern_variant)
         cardmarket_label = None
         if cardmarket_price is not None:
-            cardmarket_label = self._resolve_cardmarket_label(cardmarket_prices, normalized_finish, is_pokeball)
+            cardmarket_label = self._resolve_cardmarket_label(cardmarket_prices, normalized_finish, pattern_variant)
 
         if tcgplayer_price is not None:
+            marketplace_suffix = f":{pattern_variant}" if normalized_finish == "reverse holo" and pattern_variant else ""
             return PriceResolution(
                 base_price=tcgplayer_price,
                 currency="USD",
                 source="pokemon_tcg",
-                marketplace=f"tcgplayer:{tcgplayer_label}{':pokeball' if normalized_finish == 'reverse holo' and is_pokeball else ''}",
+                marketplace=f"tcgplayer:{tcgplayer_label}{marketplace_suffix}",
                 tcgplayer_price=tcgplayer_price,
                 tcgplayer_currency="USD",
                 tcgplayer_price_label=tcgplayer_label,
@@ -529,9 +530,9 @@ class CollectionPricingService:
         self,
         cardmarket_prices: dict,
         normalized_finish: str,
-        is_pokeball: bool = False,
+        pattern_variant: str | None = None,
     ) -> Decimal | None:
-        label = self._resolve_cardmarket_label(cardmarket_prices, normalized_finish, is_pokeball)
+        label = self._resolve_cardmarket_label(cardmarket_prices, normalized_finish, pattern_variant)
         if not label:
             return None
 
@@ -549,7 +550,7 @@ class CollectionPricingService:
         self,
         cardmarket_prices: dict,
         normalized_finish: str,
-        is_pokeball: bool = False,
+        pattern_variant: str | None = None,
     ) -> str | None:
         preferred_labels = {
             "reverse holo": ["reverseHoloTrend", "reverseHoloSell", "reverseHoloLow", "trendPrice", "averageSellPrice"],
@@ -562,7 +563,7 @@ class CollectionPricingService:
         }
 
         labels = preferred_labels.get(normalized_finish, ["trendPrice", "averageSellPrice", "lowPrice"])
-        if normalized_finish == "reverse holo" and is_pokeball:
+        if normalized_finish == "reverse holo" and pattern_variant:
             labels = ["reverseHoloTrend", "reverseHoloSell", "reverseHoloLow", *labels]
 
         for label in labels:
