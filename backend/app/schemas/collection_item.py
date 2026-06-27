@@ -1,9 +1,13 @@
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.card import CardRead, CardUpsertPayload
+
+
+CollectionPatternVariant = Literal["poke_ball", "master_ball"]
 
 
 class CollectionItemBase(BaseModel):
@@ -11,7 +15,7 @@ class CollectionItemBase(BaseModel):
     language: str | None = None
     condition: str | None = None
     finish: str | None = None
-    is_pokeball: bool = False
+    pattern_variant: CollectionPatternVariant | None = None
     is_for_sale: bool = False
     base_price: Decimal | None = Field(default=None, ge=0)
     base_price_currency: str = "USD"
@@ -26,6 +30,27 @@ class CollectionItemBase(BaseModel):
         if value is None or value == "":
             return None
         return Decimal(str(value))
+
+    @field_validator("pattern_variant", mode="before")
+    @classmethod
+    def normalize_pattern_variant(cls, value: str | bool | None) -> CollectionPatternVariant | None:
+        if value in (None, "", False):
+            return None
+        if value is True:
+            return "poke_ball"
+
+        normalized = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+        alias_map = {
+            "none": None,
+            "null": None,
+            "pokeball": "poke_ball",
+            "poke_ball": "poke_ball",
+            "poke_ball_pattern": "poke_ball",
+            "masterball": "master_ball",
+            "master_ball": "master_ball",
+            "master_ball_pattern": "master_ball",
+        }
+        return alias_map.get(normalized, normalized)  # type: ignore[return-value]
 
     @model_validator(mode="after")
     def compute_sale_price(self) -> "CollectionItemBase":
@@ -44,7 +69,7 @@ class CollectionItemUpdate(BaseModel):
     language: str | None = None
     condition: str | None = None
     finish: str | None = None
-    is_pokeball: bool | None = None
+    pattern_variant: CollectionPatternVariant | None = None
     is_for_sale: bool | None = None
     base_price: Decimal | None = Field(default=None, ge=0)
     base_price_currency: str | None = None
@@ -59,6 +84,27 @@ class CollectionItemUpdate(BaseModel):
         if value is None or value == "":
             return None
         return Decimal(str(value))
+
+    @field_validator("pattern_variant", mode="before")
+    @classmethod
+    def normalize_pattern_variant(cls, value: str | bool | None) -> CollectionPatternVariant | None:
+        if value in (None, "", False):
+            return None
+        if value is True:
+            return "poke_ball"
+
+        normalized = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+        alias_map = {
+            "none": None,
+            "null": None,
+            "pokeball": "poke_ball",
+            "poke_ball": "poke_ball",
+            "poke_ball_pattern": "poke_ball",
+            "masterball": "master_ball",
+            "master_ball": "master_ball",
+            "master_ball_pattern": "master_ball",
+        }
+        return alias_map.get(normalized, normalized)  # type: ignore[return-value]
 
 
 class CollectionItemsMoveRequest(BaseModel):
@@ -82,7 +128,7 @@ class CollectionItemRead(BaseModel):
     language: str | None = None
     condition: str | None = None
     finish: str | None = None
-    is_pokeball: bool
+    pattern_variant: CollectionPatternVariant | None = None
     is_for_sale: bool
     base_price: Decimal | None = None
     base_price_currency: str
@@ -111,7 +157,7 @@ class InventorySearchResultRead(BaseModel):
     language: str | None = None
     condition: str | None = None
     finish: str | None = None
-    is_pokeball: bool
+    pattern_variant: CollectionPatternVariant | None = None
     is_for_sale: bool
     base_price: Decimal | None = None
     base_price_currency: str

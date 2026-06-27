@@ -43,7 +43,7 @@ class CollectionItemsRepository:
             .where(CollectionItem.language == payload.language)
             .where(CollectionItem.condition == payload.condition)
             .where(CollectionItem.finish == payload.finish)
-            .where(CollectionItem.is_pokeball == payload.is_pokeball)
+            .where(CollectionItem.pattern_variant == payload.pattern_variant)
         )
         return result.scalar_one_or_none()
 
@@ -61,7 +61,7 @@ class CollectionItemsRepository:
             return await self.create(collection_id=collection_id, card_id=card_id, payload=payload)
 
         existing_item.quantity += payload.quantity
-        existing_item.is_pokeball = payload.is_pokeball
+        existing_item.pattern_variant = payload.pattern_variant
         existing_item.is_for_sale = payload.is_for_sale
         existing_item.base_price = payload.base_price
         existing_item.base_price_currency = payload.base_price_currency
@@ -153,7 +153,7 @@ class CollectionItemsRepository:
             .where(CollectionItem.language == item.language)
             .where(CollectionItem.condition == item.condition)
             .where(CollectionItem.finish == item.finish)
-            .where(CollectionItem.is_pokeball == item.is_pokeball)
+            .where(CollectionItem.pattern_variant == item.pattern_variant)
         )
         if exclude_item_id is not None:
             statement = statement.where(CollectionItem.id != exclude_item_id)

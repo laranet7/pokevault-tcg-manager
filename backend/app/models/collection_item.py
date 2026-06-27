@@ -17,7 +17,7 @@ class CollectionItem(Base):
     language: Mapped[str | None] = mapped_column(String(100), nullable=True)
     condition: Mapped[str | None] = mapped_column(String(100), nullable=True)
     finish: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    is_pokeball: Mapped[bool] = mapped_column(Boolean, default=False)
+    pattern_variant: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_for_sale: Mapped[bool] = mapped_column(Boolean, default=False)
     base_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     base_price_currency: Mapped[str] = mapped_column(String(10), default="USD")

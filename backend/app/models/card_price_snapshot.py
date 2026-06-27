@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -24,7 +24,7 @@ class CardPriceSnapshot(Base):
     cardmarket_currency: Mapped[str | None] = mapped_column(String(10), nullable=True)
     cardmarket_price_label: Mapped[str | None] = mapped_column(String(50), nullable=True)
     finish: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    is_pokeball: Mapped[bool] = mapped_column(Boolean, default=False)
+    pattern_variant: Mapped[str | None] = mapped_column(String(50), nullable=True)
     base_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     sale_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     quantity: Mapped[int] = mapped_column(default=0)

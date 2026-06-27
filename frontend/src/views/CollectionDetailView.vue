@@ -7,7 +7,7 @@ import CollectionExportDialog from '@/components/collections/CollectionExportDia
 import CollectionItemPriceHistoryDialog from '@/components/collections/CollectionItemPriceHistoryDialog.vue';
 import CollectionSettingsDialog from '@/components/collections/CollectionSettingsDialog.vue';
 import type { Collection, UpdateCollectionPayload } from '@/types/collection';
-import type { CollectionItem } from '@/types/collectionItem';
+import type { CollectionItem, PatternVariant } from '@/types/collectionItem';
 import type { CollectionItemVariation, CollectionPriceVariation } from '@/types/pricing';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -52,12 +52,14 @@ const priceHistoryItem = ref<CollectionItem | null>(null);
 const localImageUrls = ref<Record<string, string>>({});
 const objectUrls = new Set<string>();
 
+type PatternVariantField = PatternVariant | 'none';
+
 const editForm = reactive({
     quantity: 1,
     language: 'Espanol',
     condition: 'Mint',
     finish: 'Normal',
-    is_pokeball: false,
+    pattern_variant: 'none' as PatternVariantField,
     is_for_sale: false,
     base_price: null as number | null,
     base_price_currency: 'USD',
@@ -72,6 +74,11 @@ const finishOptions = ['Normal', 'Holo', 'Reverse Holo', 'Full Art', 'Illustrati
     label: value,
     value
 }));
+const patternVariantOptions = [
+    { label: 'Sin patron especial', value: 'none' },
+    { label: 'Poke Ball Pattern', value: 'poke_ball' },
+    { label: 'Master Ball Pattern', value: 'master_ball' }
+];
 const languageOptions = ['Espanol', 'Ingles', 'Japones', 'Otro'].map((value) => ({ label: value, value }));
 const saleStatusOptions = [
     { label: 'No disponible', value: 'not_available' },
@@ -288,13 +295,34 @@ function normalizeBadgeText(value: string | null | undefined): string | null {
     return normalized;
 }
 
-function resolveFinishLabel(item: CollectionItem): string | null {
-    const finish = normalizeBadgeText(item.finish);
-    if (!finish) {
-        return item.is_pokeball ? 'Pokeball' : null;
+function resolvePatternVariantLabel(patternVariant: PatternVariant | null | undefined): string | null {
+    if (!patternVariant) {
+        return null;
     }
+    if (patternVariant === 'poke_ball') {
+        return 'Poke Ball Pattern';
+    }
+    if (patternVariant === 'master_ball') {
+        return 'Master Ball Pattern';
+    }
+    return null;
+}
 
-    return item.is_pokeball ? `${finish} Pokeball` : finish;
+function resolvePatternVariantFieldValue(value: PatternVariant | null | undefined): PatternVariantField {
+    return value ?? 'none';
+}
+
+function serializePatternVariant(value: PatternVariantField): PatternVariant | null {
+    return value === 'none' ? null : value;
+}
+
+function resolveFinishLabel(item: CollectionItem): string {
+    return normalizeBadgeText(item.finish) || 'Normal';
+}
+
+function resolveCombinedFinishLabel(item: CollectionItem): string {
+    const patternLabel = resolvePatternVariantLabel(item.pattern_variant);
+    return patternLabel ? `${resolveFinishLabel(item)} - ${patternLabel}` : resolveFinishLabel(item);
 }
 
 function resolveRarityLabel(item: CollectionItem): string | null {
@@ -316,7 +344,7 @@ function normalizeEditForm(item: CollectionItem): void {
     editForm.language = item.language || 'Espanol';
     editForm.condition = item.condition || 'Mint';
     editForm.finish = item.finish || 'Normal';
-    editForm.is_pokeball = item.is_pokeball;
+    editForm.pattern_variant = resolvePatternVariantFieldValue(item.pattern_variant);
     editForm.is_for_sale = item.is_for_sale;
     editForm.base_price = item.base_price === null ? null : Number(item.base_price);
     editForm.base_price_currency = item.base_price_currency || 'USD';
@@ -419,7 +447,7 @@ async function saveEdit(): Promise<void> {
             language: editForm.language,
             condition: editForm.condition,
             finish: editForm.finish,
-            is_pokeball: editForm.is_pokeball,
+            pattern_variant: serializePatternVariant(editForm.pattern_variant),
             is_for_sale: editForm.is_for_sale,
             base_price: editForm.base_price,
             base_price_currency: editForm.base_price_currency,
@@ -574,15 +602,6 @@ watch(
     () => route.params.id,
     () => {
         loadPage();
-    }
-);
-
-watch(
-    () => editForm.finish,
-    (finish) => {
-        if (finish !== 'Reverse Holo') {
-            editForm.is_pokeball = false;
-        }
     }
 );
 
@@ -829,7 +848,8 @@ onBeforeUnmount(() => {
                                             <div class="font-semibold text-lg">{{ data.card.name }}</div>
                                             <div class="text-surface-500">{{ data.card.set_name }} - {{ data.card.number }}</div>
                                             <div class="flex flex-wrap items-center gap-2 mt-2">
-                                                <Tag v-if="resolveFinishLabel(data)" :value="resolveFinishLabel(data) || undefined" severity="info" />
+                                                <Tag :value="resolveFinishLabel(data)" severity="info" />
+                                                <Tag v-if="resolvePatternVariantLabel(data.pattern_variant)" :value="resolvePatternVariantLabel(data.pattern_variant) || undefined" severity="warn" />
                                                 <Tag v-if="resolveRarityLabel(data)" :value="resolveRarityLabel(data) || undefined" severity="contrast" />
                                             </div>
                                         </div>
@@ -911,11 +931,9 @@ onBeforeUnmount(() => {
                     <Select v-model="editForm.finish" :options="finishOptions" optionLabel="label" optionValue="value" class="w-full" />
                 </div>
                 <div class="col-span-12 md:col-span-6">
-                    <label class="block text-sm mb-2">Variante Pokeball</label>
-                    <div class="flex items-center gap-3 min-h-12 px-3 rounded-xl border border-surface-200 dark:border-surface-700">
-                        <ToggleSwitch v-model="editForm.is_pokeball" :disabled="editForm.finish !== 'Reverse Holo'" />
-                        <span>{{ editForm.finish === 'Reverse Holo' ? (editForm.is_pokeball ? 'Activada' : 'Desactivada') : 'Disponible solo para Reverse Holo' }}</span>
-                    </div>
+                    <label class="block text-sm mb-2">Patron especial</label>
+                    <Select v-model="editForm.pattern_variant" :options="patternVariantOptions" optionLabel="label" optionValue="value" class="w-full" />
+                    <small class="text-surface-500 mt-2 block">Usalo para variantes como Poke Ball Pattern o Master Ball Pattern.</small>
                 </div>
                 <div class="col-span-12 md:col-span-6">
                     <label class="block text-sm mb-2">Estado de venta</label>
@@ -1000,7 +1018,8 @@ onBeforeUnmount(() => {
                             <div class="text-surface-500 mt-1">{{ previewItem.card.set_name || 'Edicion desconocida' }} - {{ previewItem.card.number }}</div>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <Tag v-if="resolveFinishLabel(previewItem)" :value="resolveFinishLabel(previewItem) || undefined" severity="info" />
+                            <Tag :value="resolveFinishLabel(previewItem)" severity="info" />
+                            <Tag v-if="resolvePatternVariantLabel(previewItem.pattern_variant)" :value="resolvePatternVariantLabel(previewItem.pattern_variant) || undefined" severity="warn" />
                             <Tag v-if="resolveRarityLabel(previewItem)" :value="resolveRarityLabel(previewItem) || undefined" severity="contrast" />
                             <Tag v-if="previewItem.card.pokedex_number" :value="`Pokedex #${previewItem.card.pokedex_number}`" severity="info" />
                         </div>
@@ -1011,7 +1030,7 @@ onBeforeUnmount(() => {
                             </div>
                             <div class="rounded-xl bg-surface-50 dark:bg-surface-900 p-4">
                                 <div class="text-sm text-surface-500 mb-1">Acabado</div>
-                                <div class="font-medium">{{ previewItem.finish || 'Normal' }}</div>
+                                <div class="font-medium">{{ resolveCombinedFinishLabel(previewItem) }}</div>
                             </div>
                             <div class="rounded-xl bg-surface-50 dark:bg-surface-900 p-4">
                                 <div class="text-sm text-surface-500 mb-1">Idioma</div>
@@ -1023,11 +1042,11 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
-                            <div>
+                            <div class="rounded-xl bg-surface-50 dark:bg-surface-900 p-4">
                                 <div class="text-sm text-surface-500 mb-1">Precio base</div>
                                 <div class="font-semibold">{{ previewItem.base_price ? formatMoney(previewItem.base_price, previewItem.base_price_currency || 'USD') : '-' }}</div>
                             </div>
-                            <div>
+                            <div class="rounded-xl bg-surface-50 dark:bg-surface-900 p-4">
                                 <div class="text-sm text-surface-500 mb-1">Precio venta</div>
                                 <div class="font-semibold">{{ previewItem.sale_price ? formatMoney(previewItem.sale_price, previewItem.base_price_currency || 'USD') : '-' }}</div>
                             </div>

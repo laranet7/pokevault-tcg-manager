@@ -7,7 +7,7 @@ import CardResultGrid from '@/components/cards/CardResultGrid.vue';
 import ManualCardDialog from '@/components/cards/ManualCardDialog.vue';
 import CollectionItemPriceHistoryDialog from '@/components/collections/CollectionItemPriceHistoryDialog.vue';
 import type { CardSearchResult } from '@/types/card';
-import type { InventorySearchResult } from '@/types/collectionItem';
+import type { InventorySearchResult, PatternVariant } from '@/types/collectionItem';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
@@ -340,9 +340,27 @@ function normalizeBadgeText(value: string | null | undefined): string | null {
     return normalized;
 }
 
+function resolvePatternVariantLabel(patternVariant: PatternVariant | null | undefined): string | null {
+    if (!patternVariant) {
+        return null;
+    }
+    if (patternVariant === 'poke_ball') {
+        return 'Poke Ball Pattern';
+    }
+    if (patternVariant === 'master_ball') {
+        return 'Master Ball Pattern';
+    }
+    return null;
+}
+
 function resolveInventoryFinish(item: InventorySearchResult): string {
-    const finish = normalizeBadgeText(item.finish) || 'Normal';
-    return item.is_pokeball ? `${finish} Pokeball` : finish;
+    return normalizeBadgeText(item.finish) || 'Normal';
+}
+
+function resolveInventoryFinishWithPattern(item: InventorySearchResult): string {
+    const finish = resolveInventoryFinish(item);
+    const patternLabel = resolvePatternVariantLabel(item.pattern_variant);
+    return patternLabel ? `${finish} - ${patternLabel}` : finish;
 }
 
 function resolveInventoryRarity(item: InventorySearchResult): string | null {
@@ -382,7 +400,7 @@ const inventoryLanguageOptions = computed(() => [
 
 const inventoryFinishOptions = computed(() => [
     { label: 'Todos los acabados', value: 'all' },
-    ...Array.from(new Set(inventoryResults.value.map((item) => resolveInventoryFinish(item)).filter(Boolean)))
+    ...Array.from(new Set(inventoryResults.value.map((item) => resolveInventoryFinishWithPattern(item)).filter(Boolean)))
         .sort((a, b) => a.localeCompare(b, 'es'))
         .map((value) => ({ label: value, value }))
 ]);
@@ -412,7 +430,7 @@ const filteredInventoryResults = computed(() =>
         if (inventoryFilters.language !== 'all' && (item.language || '') !== inventoryFilters.language) {
             return false;
         }
-        if (inventoryFilters.finish !== 'all' && resolveInventoryFinish(item) !== inventoryFilters.finish) {
+        if (inventoryFilters.finish !== 'all' && resolveInventoryFinishWithPattern(item) !== inventoryFilters.finish) {
             return false;
         }
         if (inventoryFilters.condition !== 'all' && (item.condition || '') !== inventoryFilters.condition) {
@@ -603,6 +621,7 @@ onBeforeUnmount(() => {
                                     <div class="text-surface-500">{{ data.card.set_name || 'Edicion desconocida' }} - {{ data.card.number }}</div>
                                     <div class="flex flex-wrap gap-2 mt-2">
                                         <Tag :value="resolveInventoryFinish(data)" severity="info" />
+                                        <Tag v-if="resolvePatternVariantLabel(data.pattern_variant)" :value="resolvePatternVariantLabel(data.pattern_variant) || undefined" severity="warn" />
                                         <Tag v-if="resolveInventoryRarity(data)" :value="resolveInventoryRarity(data) || undefined" severity="contrast" />
                                     </div>
                                 </div>
@@ -646,7 +665,7 @@ onBeforeUnmount(() => {
             v-model:visible="priceHistoryVisible"
             :item-id="priceHistoryItem?.item_id ?? null"
             :title="priceHistoryItem?.card.name || 'Carta'"
-            :subtitle="priceHistoryItem ? `${priceHistoryItem.collection_name} · ${priceHistoryItem.card.set_name || 'Edicion desconocida'} - ${priceHistoryItem.card.number}` : ''"
+            :subtitle="priceHistoryItem ? `${priceHistoryItem.collection_name} - ${priceHistoryItem.card.set_name || 'Edicion desconocida'} - ${priceHistoryItem.card.number}` : ''"
             :image-src="priceHistoryItem ? getInventoryImageSrc(priceHistoryItem, 'large') : null"
             :image-alt="priceHistoryItem?.card.name || 'Carta'"
             :default-range-days="30"
@@ -676,6 +695,7 @@ onBeforeUnmount(() => {
                         </div>
                         <div class="flex flex-wrap gap-2">
                             <Tag :value="resolveInventoryFinish(previewItem)" severity="info" />
+                            <Tag v-if="resolvePatternVariantLabel(previewItem.pattern_variant)" :value="resolvePatternVariantLabel(previewItem.pattern_variant) || undefined" severity="warn" />
                             <Tag v-if="resolveInventoryRarity(previewItem)" :value="resolveInventoryRarity(previewItem) || undefined" severity="contrast" />
                             <Tag v-if="previewItem.card.pokedex_number" :value="`Pokedex #${previewItem.card.pokedex_number}`" severity="info" />
                             <Tag :value="previewItem.collection_name" severity="secondary" />
@@ -687,7 +707,7 @@ onBeforeUnmount(() => {
                             </div>
                             <div class="rounded-xl bg-surface-50 dark:bg-surface-900 p-4">
                                 <div class="text-sm text-surface-500 mb-1">Acabado</div>
-                                <div class="font-medium">{{ resolveInventoryFinish(previewItem) }}</div>
+                                <div class="font-medium">{{ resolveInventoryFinishWithPattern(previewItem) }}</div>
                             </div>
                             <div class="rounded-xl bg-surface-50 dark:bg-surface-900 p-4">
                                 <div class="text-sm text-surface-500 mb-1">Idioma</div>
@@ -699,11 +719,11 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
-                            <div>
+                            <div class="rounded-xl bg-surface-50 dark:bg-surface-900 p-4">
                                 <div class="text-sm text-surface-500 mb-1">Precio base</div>
                                 <div class="font-semibold">{{ previewItem.base_price ? formatMoney(previewItem.base_price, previewItem.base_price_currency || 'USD') : '-' }}</div>
                             </div>
-                            <div>
+                            <div class="rounded-xl bg-surface-50 dark:bg-surface-900 p-4">
                                 <div class="text-sm text-surface-500 mb-1">Precio venta</div>
                                 <div class="font-semibold">{{ previewItem.sale_price ? formatMoney(previewItem.sale_price, previewItem.base_price_currency || 'USD') : '-' }}</div>
                             </div>
