@@ -87,6 +87,13 @@ type SuggestedCardSetup = {
     currency: string;
 };
 
+type FinishSuggestionSummary = {
+    rarityLabel: string | null;
+    suggestedFinish: string;
+    availableFinishes: string[];
+    hasMultipleOptions: boolean;
+};
+
 function getTcgplayerPrices(card: CardSearchResult | null): Record<string, RawPriceEntry> {
     const tcgplayerPrices = card?.raw_prices?.tcgplayer;
     if (!tcgplayerPrices || typeof tcgplayerPrices !== 'object' || Array.isArray(tcgplayerPrices)) {
@@ -117,6 +124,19 @@ function pickPriceFromEntry(entry: RawPriceEntry | undefined): number | null {
 
     const normalized = Number(amount);
     return Number.isFinite(normalized) ? normalized : null;
+}
+
+function mapMarketplaceLabelToFinish(label: string): string | null {
+    if (label === 'normal') {
+        return 'Normal';
+    }
+    if (label === 'holofoil') {
+        return 'Holo';
+    }
+    if (label === 'reverseHolofoil') {
+        return 'Reverse Holo';
+    }
+    return null;
 }
 
 function inferFinishFromCard(card: CardSearchResult | null, preferredFinish: string): string {
@@ -204,6 +224,27 @@ function resolveSuggestedCardSetup(card: CardSearchResult | null, preferredFinis
         currency: card?.prices[0]?.currency ?? 'USD'
     };
 }
+
+function getAvailableFinishCandidates(card: CardSearchResult | null): string[] {
+    const tcgplayerPrices = getTcgplayerPrices(card);
+    const marketplaceFinishes = Object.keys(tcgplayerPrices)
+        .map((label) => mapMarketplaceLabelToFinish(label))
+        .filter((value): value is string => Boolean(value));
+
+    return Array.from(new Set(marketplaceFinishes));
+}
+
+const finishSuggestion = computed<FinishSuggestionSummary>(() => {
+    const suggestedFinish = resolveSuggestedCardSetup(props.card, DEFAULT_FINISH).finish;
+    const availableFinishes = getAvailableFinishCandidates(props.card);
+
+    return {
+        rarityLabel: props.card?.rarity?.trim() || null,
+        suggestedFinish,
+        availableFinishes,
+        hasMultipleOptions: availableFinishes.length > 1
+    };
+});
 
 function getPreferencesKey(): string {
     return `pokevault:add-card-preferences:${state.user?.id ?? 'guest'}`;
@@ -454,8 +495,23 @@ onBeforeUnmount(() => {
                         - {{ props.card.set_name }}
                     </div>
                     <div v-if="props.card.pokedex_number" class="text-sm text-surface-500 mt-1">Pokedex #{{ props.card.pokedex_number }}</div>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <Tag v-if="finishSuggestion.rarityLabel" :value="finishSuggestion.rarityLabel" severity="contrast" />
+                        <Tag :value="`Sugerido: ${finishSuggestion.suggestedFinish}`" severity="info" />
+                        <Tag v-if="finishSuggestion.hasMultipleOptions" value="Multiples acabados" severity="warn" />
+                    </div>
                 </div>
             </div>
+
+            <Message v-if="finishSuggestion.rarityLabel || finishSuggestion.hasMultipleOptions" severity="info" :closable="false">
+                <div class="flex flex-col gap-1 text-sm">
+                    <div v-if="finishSuggestion.rarityLabel"><strong>Rareza oficial:</strong> {{ finishSuggestion.rarityLabel }}</div>
+                    <div><strong>Acabado sugerido:</strong> {{ finishSuggestion.suggestedFinish }}</div>
+                    <div v-if="finishSuggestion.hasMultipleOptions">
+                        <strong>La API detecto multiples acabados posibles:</strong> {{ finishSuggestion.availableFinishes.join(', ') }}. Confirma el correcto antes de guardar.
+                    </div>
+                </div>
+            </Message>
 
             <div v-if="loadingCollections" class="flex justify-center py-6">
                 <ProgressSpinner style="width: 3rem; height: 3rem" strokeWidth="6" />
