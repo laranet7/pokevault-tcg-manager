@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pokevault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pokevault}
+      POSTGRES_DB: ${POSTGRES_DB:-pokevault}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pokevault} -d ${POSTGRES_DB:-pokevault}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://pokevault:pokevault@db:5432/pokevault}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      POKEMON_TCG_API_URL: ${POKEMON_TCG_API_URL:-https://api.pokemontcg.io/v2}
+      POKEMON_TCG_API_KEY: ${POKEMON_TCG_API_KEY:-}
+      MEDIA_ROOT: ${MEDIA_ROOT:-/app/media}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - pokevault_media:/app/media
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  postgres_data:
+  pokevault_media:
