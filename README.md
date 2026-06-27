@@ -1,5 +1,9 @@
 # PokeVault TCG
 
+<p align="center">
+  <img src="./docs/images/readme/top-image.jpg" alt="PokeVault TCG login" width="900" />
+</p>
+
 PokeVault TCG es un gestor personal de cartas Pokemon TCG orientado a inventario real. Permite buscar cartas, agregarlas a colecciones, registrar estado, acabado, idioma, valorizar colecciones, exportarlas y administrar usuarios, todo sobre una base local propia.
 
 ## Estado actual
@@ -7,6 +11,20 @@ PokeVault TCG es un gestor personal de cartas Pokemon TCG orientado a inventario
 El proyecto ya cuenta con un MVP funcional con frontend en Vue 3 + Sakai/PrimeVue y backend en FastAPI + PostgreSQL.
 
 Consulta tambien el historial funcional en [CHANGELOG.md](./CHANGELOG.md).
+
+## Capturas
+
+### Dashboard
+
+![Dashboard de PokeVault TCG](./docs/images/readme/screen-1.jpg)
+
+### Detalle de coleccion y valorizacion
+
+![Detalle de coleccion en PokeVault TCG](./docs/images/readme/screen-2.jpg)
+
+### Vista previa de carta
+
+![Modal de vista previa de carta en PokeVault TCG](./docs/images/readme/screen-3.jpg)
 
 ## Funcionalidades existentes
 
