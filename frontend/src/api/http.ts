@@ -10,8 +10,43 @@ export class ApiError extends Error {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 const AUTH_STORAGE_KEY = 'pokevault:auth-session';
+const LOGIN_ROUTE = '/auth/login';
+const FORCE_PASSWORD_CHANGE_ROUTE = '/auth/force-password-change';
+
+let unauthorizedRedirectPending = false;
 
 type JsonBody = Record<string, unknown> | Array<unknown>;
+
+function clearStoredSession(): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function isSessionAuthenticatedRequest(response: Response, headers: Headers): boolean {
+    return response.status === 401 && headers.has('Authorization');
+}
+
+function redirectToLoginAfterSessionExpiration(): void {
+    if (typeof window === 'undefined' || unauthorizedRedirectPending) {
+        return;
+    }
+
+    unauthorizedRedirectPending = true;
+    clearStoredSession();
+
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const isAuthRoute = window.location.pathname === LOGIN_ROUTE || window.location.pathname === FORCE_PASSWORD_CHANGE_ROUTE;
+    const loginUrl = new URL(LOGIN_ROUTE, window.location.origin);
+
+    if (!isAuthRoute && currentPath && currentPath !== LOGIN_ROUTE) {
+        loginUrl.searchParams.set('redirect', currentPath);
+    }
+
+    window.location.replace(`${loginUrl.pathname}${loginUrl.search}${loginUrl.hash}`);
+}
 
 function buildHeaders(init: RequestInit = {}, accept = 'application/json'): Headers {
     const headers = new Headers(init.headers);
@@ -90,6 +125,11 @@ export async function request<T>(path: string, init: RequestInit & { json?: Json
     const payload = await response.json().catch(() => null);
 
     if (!response.ok) {
+        if (isSessionAuthenticatedRequest(response, headers)) {
+            redirectToLoginAfterSessionExpiration();
+            return await new Promise<T>(() => undefined);
+        }
+
         const detail =
             (payload && typeof payload === 'object' && 'detail' in payload && formatApiDetail(payload.detail)) ||
             `Request failed with status ${response.status}`;
@@ -112,6 +152,11 @@ export async function requestBlob(path: string, init: RequestInit = {}): Promise
     }
 
     if (!response.ok) {
+        if (isSessionAuthenticatedRequest(response, headers)) {
+            redirectToLoginAfterSessionExpiration();
+            return await new Promise<Blob>(() => undefined);
+        }
+
         let detail = `Request failed with status ${response.status}`;
         try {
             const payload = await response.json();

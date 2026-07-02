@@ -2,15 +2,16 @@
 import { searchCards } from '@/api/cardsApi';
 import { searchInventoryCards } from '@/api/collectionItemsApi';
 import { requestBlob } from '@/api/http';
-import AddToCollectionDialog from '@/components/cards/AddToCollectionDialog.vue';
 import CardResultGrid from '@/components/cards/CardResultGrid.vue';
-import ManualCardDialog from '@/components/cards/ManualCardDialog.vue';
-import CollectionItemPriceHistoryDialog from '@/components/collections/CollectionItemPriceHistoryDialog.vue';
 import type { CardSearchResult } from '@/types/card';
 import type { InventorySearchResult, PatternVariant } from '@/types/collectionItem';
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
+
+const AddToCollectionDialog = defineAsyncComponent(() => import('@/components/cards/AddToCollectionDialog.vue'));
+const ManualCardDialog = defineAsyncComponent(() => import('@/components/cards/ManualCardDialog.vue'));
+const CollectionItemPriceHistoryDialog = defineAsyncComponent(() => import('@/components/collections/CollectionItemPriceHistoryDialog.vue'));
 
 const router = useRouter();
 const toast = useToast();
@@ -659,9 +660,10 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <AddToCollectionDialog v-model:visible="dialogVisible" :card="selectedCard" />
-        <ManualCardDialog v-model:visible="manualDialogVisible" :initial-query="query" />
+        <AddToCollectionDialog v-if="dialogVisible" v-model:visible="dialogVisible" :card="selectedCard" />
+        <ManualCardDialog v-if="manualDialogVisible" v-model:visible="manualDialogVisible" :initial-query="query" />
         <CollectionItemPriceHistoryDialog
+            v-if="priceHistoryVisible"
             v-model:visible="priceHistoryVisible"
             :item-id="priceHistoryItem?.item_id ?? null"
             :title="priceHistoryItem?.card.name || 'Carta'"

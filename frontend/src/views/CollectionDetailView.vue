@@ -2,19 +2,20 @@
 import { deleteCollectionItem, listCollectionItems, moveCollectionItems, updateCollectionItem } from '@/api/collectionItemsApi';
 import { deleteCollection, getCollection, getCollectionPriceVariation, listCollections, refreshCollectionPrices, updateCollection } from '@/api/collectionsApi';
 import { requestBlob } from '@/api/http';
-import CollectionCollaboratorsDialog from '@/components/collections/CollectionCollaboratorsDialog.vue';
-import CollectionExportDialog from '@/components/collections/CollectionExportDialog.vue';
-import CollectionItemPriceHistoryDialog from '@/components/collections/CollectionItemPriceHistoryDialog.vue';
-import CollectionSettingsDialog from '@/components/collections/CollectionSettingsDialog.vue';
 import type { Collection, UpdateCollectionPayload } from '@/types/collection';
 import type { CollectionItem, PatternVariant } from '@/types/collectionItem';
 import type { CollectionItemVariation, CollectionPriceVariation } from '@/types/pricing';
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import type { MenuItem } from 'primevue/menuitem';
 import Tooltip from 'primevue/tooltip';
+
+const CollectionSettingsDialog = defineAsyncComponent(() => import('@/components/collections/CollectionSettingsDialog.vue'));
+const CollectionCollaboratorsDialog = defineAsyncComponent(() => import('@/components/collections/CollectionCollaboratorsDialog.vue'));
+const CollectionItemPriceHistoryDialog = defineAsyncComponent(() => import('@/components/collections/CollectionItemPriceHistoryDialog.vue'));
+const CollectionExportDialog = defineAsyncComponent(() => import('@/components/collections/CollectionExportDialog.vue'));
 
 const route = useRoute();
 const router = useRouter();
@@ -972,6 +973,7 @@ onBeforeUnmount(() => {
         </Dialog>
 
         <CollectionSettingsDialog
+            v-if="collectionDialogVisible"
             v-model:visible="collectionDialogVisible"
             :collection="collection"
             mode="edit"
@@ -981,11 +983,13 @@ onBeforeUnmount(() => {
             @save="saveCollectionSettings"
         />
         <CollectionCollaboratorsDialog
+            v-if="collaboratorsDialogVisible"
             v-model:visible="collaboratorsDialogVisible"
             :collection="collection"
             @changed="handleCollaboratorsChanged"
         />
         <CollectionItemPriceHistoryDialog
+            v-if="priceHistoryVisible"
             v-model:visible="priceHistoryVisible"
             :item-id="priceHistoryItem?.id ?? null"
             :title="priceHistoryItem?.card.name || 'Carta'"
@@ -996,7 +1000,7 @@ onBeforeUnmount(() => {
             :current-sale-price="priceHistoryItem?.sale_price ?? null"
             :currency="priceHistoryItem?.base_price_currency || 'USD'"
         />
-        <CollectionExportDialog v-model:visible="exportDialogVisible" :collection="collection" :items="items" />
+        <CollectionExportDialog v-if="exportDialogVisible" v-model:visible="exportDialogVisible" :collection="collection" :items="items" />
         <Dialog v-model:visible="previewVisible" modal :header="previewItem?.card.name || 'Vista de carta'" :style="{ width: 'min(92vw, 56rem)' }">
             <div class="grid grid-cols-12 gap-6 items-start">
                 <div class="col-span-12 md:col-span-5">
