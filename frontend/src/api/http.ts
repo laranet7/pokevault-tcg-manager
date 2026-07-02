@@ -16,6 +16,10 @@ const FORCE_PASSWORD_CHANGE_ROUTE = '/auth/force-password-change';
 let unauthorizedRedirectPending = false;
 
 type JsonBody = Record<string, unknown> | Array<unknown>;
+type RequestOptions = RequestInit & {
+    json?: JsonBody;
+    auth?: boolean;
+};
 
 function clearStoredSession(): void {
     if (typeof window === 'undefined') {
@@ -25,8 +29,8 @@ function clearStoredSession(): void {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
-function isSessionAuthenticatedRequest(response: Response, headers: Headers): boolean {
-    return response.status === 401 && headers.has('Authorization');
+function isSessionAuthenticatedRequest(response: Response, usedAuth: boolean): boolean {
+    return response.status === 401 && usedAuth;
 }
 
 function redirectToLoginAfterSessionExpiration(): void {
@@ -48,11 +52,11 @@ function redirectToLoginAfterSessionExpiration(): void {
     window.location.replace(`${loginUrl.pathname}${loginUrl.search}${loginUrl.hash}`);
 }
 
-function buildHeaders(init: RequestInit = {}, accept = 'application/json'): Headers {
+function buildHeaders(init: RequestInit = {}, accept = 'application/json', auth = true): Headers {
     const headers = new Headers(init.headers);
     headers.set('Accept', accept);
 
-    if (typeof window !== 'undefined') {
+    if (auth && typeof window !== 'undefined') {
         const rawSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
         if (rawSession) {
             try {
@@ -97,20 +101,22 @@ function formatApiDetail(detail: unknown): string {
     return 'Request failed';
 }
 
-export async function request<T>(path: string, init: RequestInit & { json?: JsonBody } = {}): Promise<T> {
-    const headers = buildHeaders(init);
-    let body = init.body;
-    if (init.json !== undefined) {
+export async function request<T>(path: string, init: RequestOptions = {}): Promise<T> {
+    const { json, auth = true, ...fetchInit } = init;
+    const headers = buildHeaders(fetchInit, 'application/json', auth);
+    const usedAuth = auth && headers.has('Authorization');
+    let body = fetchInit.body;
+    if (json !== undefined) {
         if (!headers.has('Content-Type')) {
             headers.set('Content-Type', 'application/json');
         }
-        body = JSON.stringify(init.json);
+        body = JSON.stringify(json);
     }
 
     let response: Response;
     try {
         response = await fetch(`${API_BASE_URL}${path}`, {
-            ...init,
+            ...fetchInit,
             headers,
             body
         });
@@ -125,9 +131,9 @@ export async function request<T>(path: string, init: RequestInit & { json?: Json
     const payload = await response.json().catch(() => null);
 
     if (!response.ok) {
-        if (isSessionAuthenticatedRequest(response, headers)) {
+        if (isSessionAuthenticatedRequest(response, usedAuth)) {
             redirectToLoginAfterSessionExpiration();
-            return await new Promise<T>(() => undefined);
+            throw new ApiError('La sesion expiro.', response.status);
         }
 
         const detail =
@@ -141,6 +147,7 @@ export async function request<T>(path: string, init: RequestInit & { json?: Json
 
 export async function requestBlob(path: string, init: RequestInit = {}): Promise<Blob> {
     const headers = buildHeaders(init, 'image/*');
+    const usedAuth = headers.has('Authorization');
     let response: Response;
     try {
         response = await fetch(`${API_BASE_URL}${path}`, {
@@ -152,9 +159,9 @@ export async function requestBlob(path: string, init: RequestInit = {}): Promise
     }
 
     if (!response.ok) {
-        if (isSessionAuthenticatedRequest(response, headers)) {
+        if (isSessionAuthenticatedRequest(response, usedAuth)) {
             redirectToLoginAfterSessionExpiration();
-            return await new Promise<Blob>(() => undefined);
+            throw new ApiError('La sesion expiro.', response.status);
         }
 
         let detail = `Request failed with status ${response.status}`;
