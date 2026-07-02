@@ -395,7 +395,8 @@ watch(
         } else {
             clearImage();
         }
-    }
+    },
+    { immediate: true }
 );
 
 watch(

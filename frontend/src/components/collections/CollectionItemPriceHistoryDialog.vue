@@ -338,7 +338,8 @@ watch(
             return;
         }
         void loadHistory();
-    }
+    },
+    { immediate: true }
 );
 
 watch(

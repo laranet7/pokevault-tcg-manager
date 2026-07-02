@@ -503,12 +503,32 @@ onBeforeUnmount(() => {
                         <div class="text-2xl font-semibold mb-2">Buscar carta</div>
                         <p class="text-surface-500 mb-0">{{ searchDescription }}</p>
                     </div>
-                    <SelectButton v-model="mode" :options="modeOptions" optionLabel="label" optionValue="value" :allowEmpty="false" />
+                    <div class="flex flex-wrap gap-2 lg:justify-end">
+                        <Button
+                            v-for="option in modeOptions"
+                            :key="option.value"
+                            :label="option.label"
+                            size="small"
+                            :severity="mode === option.value ? 'primary' : 'secondary'"
+                            :outlined="mode !== option.value"
+                            @click="mode = option.value"
+                        />
+                    </div>
                 </div>
 
                 <div v-if="mode === 'promo'" class="flex items-center gap-3">
                     <span class="text-sm text-surface-500">Buscar promos por:</span>
-                    <SelectButton v-model="promoMode" :options="promoModeOptions" optionLabel="label" optionValue="value" :allowEmpty="false" />
+                    <div class="flex flex-wrap gap-2">
+                        <Button
+                            v-for="option in promoModeOptions"
+                            :key="option.value"
+                            :label="option.label"
+                            size="small"
+                            :severity="promoMode === option.value ? 'primary' : 'secondary'"
+                            :outlined="promoMode !== option.value"
+                            @click="promoMode = option.value"
+                        />
+                    </div>
                 </div>
 
                 <div class="flex flex-col lg:flex-row lg:items-end gap-4">
