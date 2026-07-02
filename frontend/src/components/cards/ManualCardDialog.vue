@@ -356,7 +356,8 @@ watch(
         } else {
             clearImage();
         }
-    }
+    },
+    { immediate: true }
 );
 
 onBeforeUnmount(() => {
