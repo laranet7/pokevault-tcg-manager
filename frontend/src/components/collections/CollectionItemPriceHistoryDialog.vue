@@ -2,7 +2,7 @@
 import { getCollectionItemPriceHistory } from '@/api/collectionItemsApi';
 import { useLayout } from '@/layout/composables/layout';
 import type { PriceHistoryEntry } from '@/types/pricing';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 
 type RangePreset = '7d' | '30d' | '90d' | 'all';
@@ -199,7 +199,7 @@ function variationSeverity(value: number | null): 'success' | 'danger' | 'second
     return 'secondary';
 }
 
-function applyPreset(preset: RangePreset): void {
+async function applyPreset(preset: RangePreset): Promise<void> {
     syncingPreset.value = true;
     selectedPreset.value = preset;
 
@@ -223,6 +223,7 @@ function applyPreset(preset: RangePreset): void {
 
     startDate.value = start < minAvailableDate.value ? minAvailableDate.value : start;
     endDate.value = latest;
+    await nextTick();
     syncingPreset.value = false;
 }
 
@@ -321,7 +322,7 @@ async function loadHistory(): Promise<void> {
     error.value = '';
     try {
         history.value = await getCollectionItemPriceHistory(props.itemId);
-        applyPreset(resolveDefaultPreset());
+        await applyPreset(resolveDefaultPreset());
     } catch (err) {
         error.value = err instanceof Error ? err.message : 'No fue posible cargar el historico de precios.';
         toast.add({ severity: 'error', summary: 'Error', detail: error.value, life: 4000 });
@@ -352,9 +353,9 @@ watch(
 
 watch(
     () => props.defaultRangeDays,
-    () => {
+    async () => {
         if (props.visible && history.value.length) {
-            applyPreset(resolveDefaultPreset());
+            await applyPreset(resolveDefaultPreset());
         }
     }
 );
