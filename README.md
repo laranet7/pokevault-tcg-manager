@@ -4,128 +4,128 @@
   <img src="./docs/images/readme/top-image.jpg" alt="PokeVault TCG login" width="900" />
 </p>
 
-PokeVault TCG es un gestor personal de cartas Pokemon TCG orientado a inventario real. Permite buscar cartas, agregarlas a colecciones, registrar estado, acabado, idioma, valorizar colecciones, exportarlas y administrar usuarios, todo sobre una base local propia.
+PokeVault TCG is a personal Pokemon TCG card manager focused on real inventory. It lets you search cards, add them to collections, track condition, finish and language, value collections, export data, and manage users on your own local stack.
 
-## Estado actual
+## Current status
 
-El proyecto ya cuenta con un MVP funcional con frontend en Vue 3 + Sakai/PrimeVue y backend en FastAPI + PostgreSQL.
+The project already has a functional MVP built with a Vue 3 + Sakai/PrimeVue frontend and a FastAPI + PostgreSQL backend.
 
-Consulta tambien el historial funcional en [CHANGELOG.md](./CHANGELOG.md).
+You can also review the functional history in [CHANGELOG.md](./CHANGELOG.md).
 
-## Capturas
+## Screenshots
 
 ### Dashboard
 
-![Dashboard de PokeVault TCG](./docs/images/readme/screen-1.jpg)
+![PokeVault TCG dashboard](./docs/images/readme/screen-1.jpg)
 
-### Detalle de coleccion y valorizacion
+### Collection detail and valuation
 
-![Detalle de coleccion en PokeVault TCG](./docs/images/readme/screen-2.jpg)
+![PokeVault TCG collection detail](./docs/images/readme/screen-2.jpg)
 
-### Vista previa de carta
+### Card preview
 
-![Modal de vista previa de carta en PokeVault TCG](./docs/images/readme/screen-3.jpg)
+![PokeVault TCG card preview modal](./docs/images/readme/screen-3.jpg)
 
-## Funcionalidades existentes
+## Existing features
 
-### Autenticacion y cuenta
+### Authentication and account
 
-- Login con JWT.
-- Cambio obligatorio de clave en primer acceso.
-- Cambio de clave desde menu superior.
-- Edicion de perfil propio.
-- Administracion de usuarios solo para administradores.
-- Creacion y edicion de usuarios con control de estado, rol admin y forzado de cambio de clave.
-- Los administradores pueden acceder a la administracion global del sistema y no quedan limitados por permisos de coleccion.
-- El login no precarga credenciales por defecto.
+- JWT login.
+- Forced password change on first access.
+- Password change from the top menu.
+- Own profile editing.
+- User administration for administrators only.
+- User creation and editing with active status, admin role and forced password change controls.
+- Administrators can access global system administration and are not limited by collection permissions.
+- The login screen does not preload default credentials.
 
-### Preferencias visuales
+### Visual preferences
 
-- Theme Sakai con modo claro y oscuro.
-- Seleccion de preset, color primario y surface.
-- Persistencia por usuario en `localStorage` del navegador.
-- Logo de topbar personalizado para PokeVault TCG.
+- Sakai theme with light and dark mode.
+- Preset, primary color and surface selection.
+- Per-user persistence in browser `localStorage`.
+- Custom topbar logo for PokeVault TCG.
 
-### Busqueda de cartas
+### Card search
 
-- Busqueda general por nombre o codigo.
-- Busqueda por codigo normal en formato `160/165`.
-- Mascara y normalizacion de codigo, por ejemplo `001/165 -> 1/165`.
-- Busqueda de promos por codigo, por ejemplo `SVP/088`.
-- Busqueda de promos por nombre.
-- Soporte para subsets y codigos especiales como `TG01/TG30`.
-- Fallback de busqueda a TCGdex cuando Pokemon TCG API no encuentra resultados.
-- Badge de fuente para distinguir resultados externos cuando aplica.
+- General search by name or code.
+- Standard code search in `160/165` format.
+- Code masking and normalization, for example `001/165 -> 1/165`.
+- Promo search by code, for example `SVP/088`.
+- Promo search by name.
+- Support for subsets and special codes such as `TG01/TG30`.
+- Search fallback to TCGdex when Pokemon TCG API does not return results.
+- Source badge to distinguish external results when applicable.
 
-### Inventario y colecciones
+### Inventory and collections
 
-- Creacion, edicion y eliminacion de colecciones.
-- Vista de colecciones en tabla.
-- Confirmacion antes de eliminar una coleccion.
-- Configuracion de coleccion en modal.
-- Toggle por coleccion para ordenar cartas Pokemon por numero de Pokedex y dejar no Pokemon al final.
-- Solo se crean las colecciones que el usuario defina; no se generan colecciones seed por defecto.
-- Detalle de coleccion con tabla de cartas, seleccion multiple y panel de valorizacion.
-- Edicion de items dentro de una coleccion.
-- Movimiento de una o varias cartas entre colecciones.
-- Busqueda local en inventario, sin importar en que coleccion este la carta.
-- Soporte de ownership por coleccion.
-- Soporte de colaboradores por coleccion con roles `viewer` y `editor`.
-- Transferencia de ownership de una coleccion a otro usuario autorizado.
-- El owner puede administrar colaboradores y transferir la coleccion.
-- Un colaborador `viewer` puede ver la coleccion, pero no modificarla.
-- Un colaborador `editor` puede editar items y operar sobre la coleccion, pero no administrar ownership.
-- La visibilidad publica y privada sigue disponible como propiedad funcional de la coleccion.
+- Create, edit and delete collections.
+- Table view for collections.
+- Confirmation before deleting a collection.
+- Collection settings in a modal.
+- Per-collection toggle to sort Pokemon cards by Pokedex number and keep non-Pokemon cards at the end.
+- Only user-defined collections are created; no default seed collections are generated.
+- Collection detail with card table, multi-select and valuation panel.
+- Edit items inside a collection.
+- Move one or multiple cards between collections.
+- Local inventory search regardless of which collection contains the card.
+- Ownership support per collection.
+- Collection collaborators with `viewer` and `editor` roles.
+- Ownership transfer to another authorized user.
+- The owner can manage collaborators and transfer the collection.
+- A `viewer` collaborator can see the collection but cannot modify it.
+- An `editor` collaborator can edit items and operate on the collection but cannot manage ownership.
+- Public and private visibility remains available as a functional collection property.
 
-### Alta de cartas al inventario
+### Adding cards to inventory
 
-- Agregado de cartas desde resultados de busqueda.
-- Evita duplicados logicos mediante merge por carta y coleccion cuando corresponde.
-- Alta manual para cartas que no existen en APIs externas.
-- Opcion de subir imagen manual al crear o importar una carta.
-- Persistencia de preferencias del dialogo de alta.
-- Ultima coleccion usada.
-- Idioma.
-- Estado.
-- Acabado.
-- Patron especial para variantes como Poke Ball Pattern y Master Ball Pattern.
-- Precarga de acabado sugerido usando metadata y precios de la API cuando es posible.
+- Add cards from search results.
+- Avoids logical duplicates through merge behavior by card and collection when appropriate.
+- Manual creation for cards not available in external APIs.
+- Option to upload a manual image when creating or importing a card.
+- Persistence of add-dialog preferences.
+- Last used collection.
+- Language.
+- Condition.
+- Finish.
+- Special pattern support for variants such as Poke Ball Pattern and Master Ball Pattern.
+- Suggested finish prefill using API metadata and prices when possible.
 
-### Imagenes de cartas
+### Card images
 
-- Se mantiene URL de imagen externa en base de datos.
-- Ademas se guarda copia local de imagen en almacenamiento persistente.
-- Soporte de imagen `small` y `large`.
-- Endpoint local para servir imagenes desde PokeVault TCG.
-- Vista previa ampliada de cartas desde detalle de coleccion y desde busqueda de inventario.
-- Esto protege parcialmente el inventario ante cambios o desaparicion de imagenes en APIs externas.
+- External image URL is stored in the database.
+- A local copy of the image is also stored in persistent storage.
+- Support for `small` and `large` image sizes.
+- Local endpoint to serve images from PokeVault TCG.
+- Enlarged card preview from collection detail and inventory search.
+- This partially protects your inventory from image changes or removals in external APIs.
 
-### Valorizacion y precios
+### Valuation and pricing
 
-- Valorizacion por coleccion en dashboard.
-- Dashboard mostrando solo colecciones con cartas.
-- Orden descendente por precio en valorizacion de colecciones.
-- Actualizacion de precios por coleccion.
-- Historial de snapshots de precio por item.
-- Variacion entre la ultima valorizacion y la anterior.
-- Si una API no devuelve precio o devuelve `0`, no se pisa automaticamente un valor manual previo valido.
-- Soporte de monedas segun fuente disponible, incluyendo casos en USD y EUR.
+- Collection valuation in the dashboard.
+- Dashboard only shows collections that contain cards.
+- Collections are sorted by descending price in valuation views.
+- Refresh prices per collection.
+- Price snapshot history per item.
+- Variation between the latest valuation and the previous one.
+- If an API returns no price or returns `0`, a valid previous manual value is not automatically overwritten.
+- Currency support based on available source data, including USD and EUR cases.
 
-### Exportacion
+### Export
 
-- Exportacion de coleccion a PDF.
-- Exportacion de coleccion a Excel.
-- En PDF se puede elegir 2 o 3 columnas.
-- En PDF se usan imagenes de cartas del propio sistema.
-- Opciones para incluir precio TCG y precio final de venta.
-- El PDF incluye datos como nombre, rareza, estado, edicion, acabado, idioma y cantidad.
-- Excel se exporta como tabla para ordenar o filtrar luego.
+- Export collection to PDF.
+- Export collection to Excel.
+- PDF export supports 2 or 3 columns.
+- PDF export uses images served by the system itself.
+- Options to include TCG price and final sale price.
+- The PDF includes data such as name, rarity, condition, edition, finish, language and quantity.
+- Excel is exported as a table ready to sort or filter later.
 
-### Integraciones externas
+### External integrations
 
-- Integracion principal con Pokemon TCG API.
-- Integracion de respaldo con TCGdex para busquedas no resueltas por la API principal.
-- Envio automatico de `X-Api-Key` desde backend cuando `POKEMON_TCG_API_KEY` esta configurada.
+- Main integration with Pokemon TCG API.
+- Backup integration with TCGdex for unresolved searches from the main API.
+- Automatic `X-Api-Key` header forwarding from backend when `POKEMON_TCG_API_KEY` is configured.
 
 ## Stack
 
@@ -145,60 +145,60 @@ Consulta tambien el historial funcional en [CHANGELOG.md](./CHANGELOG.md).
 - Vite
 - Tailwind utility classes
 
-## Variables de entorno
+## Environment variables
 
-Copia `.env.example` a `.env` y ajusta los valores segun tu entorno.
+Copy `.env.example` to `.env` and adjust the values for your environment.
 
-| Variable | Descripcion |
+| Variable | Description |
 | --- | --- |
-| `POSTGRES_USER` | Usuario de PostgreSQL |
-| `POSTGRES_PASSWORD` | Clave de PostgreSQL |
-| `POSTGRES_DB` | Base de datos |
-| `POSTGRES_PORT` | Puerto local del contenedor PostgreSQL |
-| `DATABASE_URL` | Conexion async usada por el backend |
-| `CORS_ORIGINS` | Origenes permitidos para frontend |
-| `POKEMON_TCG_API_URL` | URL base de Pokemon TCG API |
-| `POKEMON_TCG_API_KEY` | API key enviada como `X-Api-Key` |
-| `MEDIA_ROOT` | Ruta de almacenamiento local de imagenes |
-| `SEED_DEFAULT_ADMIN` | Si es `true`, intenta bootstrapear un admin inicial |
-| `TERMS_VERSION` | Version vigente de los terminos de uso |
-| `AUTH_SECRET_KEY` | Secreto para JWT |
-| `AUTH_TOKEN_TTL_HOURS` | Duracion del token |
-| `VITE_API_BASE_URL` | URL base que usa el frontend |
+| `POSTGRES_USER` | PostgreSQL user |
+| `POSTGRES_PASSWORD` | PostgreSQL password |
+| `POSTGRES_DB` | Database name |
+| `POSTGRES_PORT` | Local PostgreSQL container port |
+| `DATABASE_URL` | Async connection string used by the backend |
+| `CORS_ORIGINS` | Allowed frontend origins |
+| `POKEMON_TCG_API_URL` | Pokemon TCG API base URL |
+| `POKEMON_TCG_API_KEY` | API key sent as `X-Api-Key` |
+| `MEDIA_ROOT` | Local storage path for images |
+| `SEED_DEFAULT_ADMIN` | If `true`, attempts to bootstrap an initial admin |
+| `TERMS_VERSION` | Current terms of use version |
+| `AUTH_SECRET_KEY` | JWT secret |
+| `AUTH_TOKEN_TTL_HOURS` | Token duration |
+| `VITE_API_BASE_URL` | Frontend API base URL |
 
-## Como levantar el proyecto
+## How to run the project
 
-### Con Docker Compose
+### With Docker Compose
 
-1. Copia `.env.example` a `.env`.
-2. Completa `POKEMON_TCG_API_KEY` cuando la tengas disponible.
-3. Desde la raiz ejecuta:
+1. Copy `.env.example` to `.env`.
+2. Fill in `POKEMON_TCG_API_KEY` when available.
+3. Run from the repository root:
 
 ```powershell
 docker compose up -d --build
 ```
 
-4. Si necesitas aplicar migraciones manualmente:
+4. If you need to apply migrations manually:
 
 ```powershell
 docker compose exec backend alembic upgrade head
 ```
 
-### Servicios locales
+### Local services
 
 - Frontend: `http://localhost:8080`
 - Backend: `http://localhost:8000`
 - Swagger/OpenAPI: `http://localhost:8000/docs`
 
-## Acceso inicial
+## Initial access
 
-- La pantalla de login no rellena `Admin / Admin`.
-- Si `SEED_DEFAULT_ADMIN=true`, el backend intentara crear el usuario administrador inicial definido por el seed para bootstrap.
-- En el primer login, el usuario marcado con `must_change_password=true` sera redirigido al cambio obligatorio de clave.
+- The login screen does not prefill `Admin / Admin`.
+- If `SEED_DEFAULT_ADMIN=true`, the backend will try to create the initial administrator defined by the bootstrap seed.
+- On first login, any user marked with `must_change_password=true` will be redirected to forced password change.
 
-Si no quieres bootstrap automatico de admin en un ambiente nuevo, desactiva el seed correspondiente antes del deploy.
+If you do not want automatic admin bootstrap in a new environment, disable the corresponding seed before deployment.
 
-## Comandos utiles
+## Useful commands
 
 ```powershell
 docker compose up -d --build
@@ -208,9 +208,9 @@ docker compose logs -f frontend
 docker compose exec backend alembic upgrade head
 ```
 
-## Endpoints principales
+## Main endpoints
 
-### Salud y autenticacion
+### Health and authentication
 
 - `GET /api/health`
 - `POST /api/auth/login`
@@ -219,13 +219,13 @@ docker compose exec backend alembic upgrade head
 - `GET /api/me/terms-status`
 - `POST /api/me/accept-terms`
 
-### Cartas
+### Cards
 
 - `GET /api/cards/search`
 - `GET /api/cards/{id}`
 - `GET /api/cards/{id}/image?size=small|large`
 
-### Dashboard y colecciones
+### Dashboard and collections
 
 - `GET /api/dashboard/collections-valuation`
 - `POST /api/collections`
@@ -240,7 +240,7 @@ docker compose exec backend alembic upgrade head
 - `DELETE /api/collections/{id}/collaborators/{user_id}`
 - `POST /api/collections/{id}/transfer-ownership`
 
-### Items de coleccion
+### Collection items
 
 - `POST /api/collections/{id}/items`
 - `POST /api/collections/{id}/items/import`
@@ -252,7 +252,7 @@ docker compose exec backend alembic upgrade head
 - `POST /api/collection-items/move`
 - `GET /api/collection-items/{id}/price-history`
 
-### Usuarios
+### Users
 
 - `GET /api/users`
 - `GET /api/users/options`
@@ -260,25 +260,25 @@ docker compose exec backend alembic upgrade head
 - `PATCH /api/users/me`
 - `PATCH /api/users/{id}`
 
-## Modelo de permisos
+## Permission model
 
-- `admin`: puede administrar usuarios y tiene acceso global a colecciones e inventario.
-- `owner`: usuario dueno de una coleccion. Puede editarla, administrar colaboradores y transferir ownership.
-- `editor`: colaborador con permiso de edicion sobre la coleccion y sus items.
-- `viewer`: colaborador con permiso solo de visualizacion.
+- `admin`: can manage users and has global access to collections and inventory.
+- `owner`: collection owner. Can edit it, manage collaborators and transfer ownership.
+- `editor`: collaborator with edit permission over the collection and its items.
+- `viewer`: collaborator with view-only permission.
 
-En endpoints de colecciones, el backend distingue permisos `view`, `edit` y `manage` para resolver acceso segun el rol del usuario.
+For collection endpoints, the backend distinguishes `view`, `edit` and `manage` permissions to resolve access based on the user role.
 
-## Persistencia
+## Persistence
 
-Docker Compose usa dos volumenes principales:
+Docker Compose uses two main volumes:
 
-- `postgres_data`: datos PostgreSQL
-- `pokevault_media`: imagenes locales de cartas
+- `postgres_data`: PostgreSQL data
+- `pokevault_media`: local card images
 
-Esto permite mantener inventario e imagenes aun cuando reconstruyas contenedores.
+This allows inventory and images to persist even when you rebuild containers.
 
-## Estructura del proyecto
+## Project structure
 
 ```txt
 pokevault/
@@ -291,10 +291,10 @@ pokevault/
 |-- CHANGELOG.md
 ```
 
-## Roadmap documental
+## Documentation roadmap
 
-- `README.md`: vision general, instalacion, variables, uso y arquitectura.
-- `CHANGELOG.md`: cambios funcionales posteriores al MVP.
+- `README.md`: overall vision, setup, environment variables, usage and architecture.
+- `CHANGELOG.md`: functional changes after the MVP.
 
 ## Support the project
 
@@ -308,18 +308,6 @@ Your support helps with maintenance, improvements, documentation, bug fixes and 
 
 Contributions are completely optional. PokeVault TCG will remain free and open source.
 
-## Apoya el proyecto
-
-PokeVault TCG es un proyecto gratuito, open source y no oficial, creado para gestionar colecciones personales de cartas Pokemon TCG.
-
-Si este proyecto te resulta util y quieres apoyar su desarrollo, puedes realizar una contribucion voluntaria.
-
-Tu apoyo ayuda a mantener el proyecto, mejorar la documentacion, corregir errores y desarrollar nuevas funcionalidades.
-
-[Invitame un cafe](https://paypal.me/pokevaulttcg)
-
-Los aportes son completamente opcionales. PokeVault TCG seguira siendo gratuito y open source.
-
 ## Disclaimer
 
-Este proyecto es independiente y no esta afiliado a Nintendo, Creatures, GAME FREAK, The Pokemon Company, Pokemon TCG API ni TCGdex.
+This project is independent and is not affiliated with Nintendo, Creatures, GAME FREAK, The Pokemon Company, Pokemon TCG API or TCGdex.
