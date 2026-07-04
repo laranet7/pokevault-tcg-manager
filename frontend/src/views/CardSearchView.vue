@@ -2,15 +2,16 @@
 import { searchCards } from '@/api/cardsApi';
 import { searchInventoryCards } from '@/api/collectionItemsApi';
 import { requestBlob } from '@/api/http';
-import AddToCollectionDialog from '@/components/cards/AddToCollectionDialog.vue';
 import CardResultGrid from '@/components/cards/CardResultGrid.vue';
-import ManualCardDialog from '@/components/cards/ManualCardDialog.vue';
-import CollectionItemPriceHistoryDialog from '@/components/collections/CollectionItemPriceHistoryDialog.vue';
 import type { CardSearchResult } from '@/types/card';
 import type { InventorySearchResult, PatternVariant } from '@/types/collectionItem';
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
+
+const AddToCollectionDialog = defineAsyncComponent(() => import('@/components/cards/AddToCollectionDialog.vue'));
+const ManualCardDialog = defineAsyncComponent(() => import('@/components/cards/ManualCardDialog.vue'));
+const CollectionItemPriceHistoryDialog = defineAsyncComponent(() => import('@/components/collections/CollectionItemPriceHistoryDialog.vue'));
 
 const router = useRouter();
 const toast = useToast();
@@ -502,12 +503,32 @@ onBeforeUnmount(() => {
                         <div class="text-2xl font-semibold mb-2">Buscar carta</div>
                         <p class="text-surface-500 mb-0">{{ searchDescription }}</p>
                     </div>
-                    <SelectButton v-model="mode" :options="modeOptions" optionLabel="label" optionValue="value" :allowEmpty="false" />
+                    <div class="flex flex-wrap gap-2 lg:justify-end">
+                        <Button
+                            v-for="option in modeOptions"
+                            :key="option.value"
+                            :label="option.label"
+                            size="small"
+                            :severity="mode === option.value ? 'primary' : 'secondary'"
+                            :outlined="mode !== option.value"
+                            @click="mode = option.value"
+                        />
+                    </div>
                 </div>
 
                 <div v-if="mode === 'promo'" class="flex items-center gap-3">
                     <span class="text-sm text-surface-500">Buscar promos por:</span>
-                    <SelectButton v-model="promoMode" :options="promoModeOptions" optionLabel="label" optionValue="value" :allowEmpty="false" />
+                    <div class="flex flex-wrap gap-2">
+                        <Button
+                            v-for="option in promoModeOptions"
+                            :key="option.value"
+                            :label="option.label"
+                            size="small"
+                            :severity="promoMode === option.value ? 'primary' : 'secondary'"
+                            :outlined="promoMode !== option.value"
+                            @click="promoMode = option.value"
+                        />
+                    </div>
                 </div>
 
                 <div class="flex flex-col lg:flex-row lg:items-end gap-4">
@@ -659,9 +680,10 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <AddToCollectionDialog v-model:visible="dialogVisible" :card="selectedCard" />
-        <ManualCardDialog v-model:visible="manualDialogVisible" :initial-query="query" />
+        <AddToCollectionDialog v-if="dialogVisible" v-model:visible="dialogVisible" :card="selectedCard" />
+        <ManualCardDialog v-if="manualDialogVisible" v-model:visible="manualDialogVisible" :initial-query="query" />
         <CollectionItemPriceHistoryDialog
+            v-if="priceHistoryVisible"
             v-model:visible="priceHistoryVisible"
             :item-id="priceHistoryItem?.item_id ?? null"
             :title="priceHistoryItem?.card.name || 'Carta'"

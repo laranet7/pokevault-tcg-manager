@@ -4,7 +4,8 @@ import type { ChangePasswordPayload, LoginPayload, LoginResponse, User } from '@
 export function login(payload: LoginPayload): Promise<LoginResponse> {
     return request<LoginResponse>('/auth/login', {
         method: 'POST',
-        json: payload
+        json: payload,
+        auth: false
     });
 }
 

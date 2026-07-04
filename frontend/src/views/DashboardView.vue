@@ -2,12 +2,13 @@
 import { getCollectionsValuation, getDashboardPriceMovers } from '@/api/dashboardApi';
 import { requestBlob } from '@/api/http';
 import { listCollections } from '@/api/collectionsApi';
-import CollectionItemPriceHistoryDialog from '@/components/collections/CollectionItemPriceHistoryDialog.vue';
 import type { Collection } from '@/types/collection';
 import type { CollectionValuation, DashboardPriceMover, DashboardPriceMovers } from '@/types/pricing';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
+
+const CollectionItemPriceHistoryDialog = defineAsyncComponent(() => import('@/components/collections/CollectionItemPriceHistoryDialog.vue'));
 
 const router = useRouter();
 const toast = useToast();
@@ -471,6 +472,7 @@ onBeforeUnmount(() => {
         </template>
 
         <CollectionItemPriceHistoryDialog
+            v-if="priceHistoryVisible"
             v-model:visible="priceHistoryVisible"
             :item-id="selectedMover?.collection_item_id ?? null"
             :title="selectedMover?.card_name || 'Carta'"
