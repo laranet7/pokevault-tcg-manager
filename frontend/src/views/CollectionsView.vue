@@ -217,6 +217,7 @@ onMounted(loadCollections);
             </div>
             <div class="flex items-center gap-3">
                 <Tag :value="`${collections.length} colecciones`" severity="info" />
+                <Button label="Nueva coleccion" icon="pi pi-plus" @click="openCreateDialog" />
                 <Button
                     icon="pi pi-ellipsis-v"
                     severity="secondary"
@@ -224,7 +225,6 @@ onMounted(loadCollections);
                     aria-label="Opciones"
                     @click="toggleOptionsMenu"
                 />
-                <Button label="Nueva coleccion" icon="pi pi-plus" @click="openCreateDialog" />
                 <Menu ref="optionsMenu" :model="collectionOptions" popup />
             </div>
         </div>
