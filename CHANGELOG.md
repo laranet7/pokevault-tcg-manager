@@ -11,6 +11,10 @@ Suggested format:
 
 ## [Unreleased]
 
+### Added
+
+- Collections view now includes an options menu with a bulk valuation refresh flow, allowing users to choose multiple editable collections and refresh their prices in one action instead of updating them one by one.
+
 ### Changed
 
 - Heavy dialogs in card search, dashboard and collection detail are mounted on demand to reduce the initial frontend load without changing the main workflows.
