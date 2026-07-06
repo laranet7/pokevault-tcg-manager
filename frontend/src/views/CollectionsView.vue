@@ -329,6 +329,7 @@ onMounted(loadCollections);
                         severity="secondary"
                         outlined
                         size="small"
+                        :disabled="bulkRefreshing"
                         @click="toggleSelectAllRefreshableCollections"
                     />
                 </div>
@@ -344,9 +345,19 @@ onMounted(loadCollections);
                     <label
                         v-for="collection in refreshableCollections"
                         :key="collection.id"
-                        class="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-900 transition-colors"
+                        :class="[
+                            'flex items-start gap-3 px-4 py-3 transition-colors',
+                            bulkRefreshing
+                                ? 'cursor-default opacity-70'
+                                : 'cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-900'
+                        ]"
                     >
-                        <Checkbox v-model="selectedRefreshCollectionIds" :value="collection.id" :inputId="`refresh-collection-${collection.id}`" />
+                        <Checkbox
+                            v-model="selectedRefreshCollectionIds"
+                            :value="collection.id"
+                            :inputId="`refresh-collection-${collection.id}`"
+                            :disabled="bulkRefreshing"
+                        />
                         <div class="min-w-0 flex-1">
                             <div class="font-medium">{{ collection.name }}</div>
                             <div class="text-sm text-surface-500">
@@ -371,7 +382,7 @@ onMounted(loadCollections);
                         label="Actualizar"
                         icon="pi pi-refresh"
                         :loading="bulkRefreshing"
-                        :disabled="!refreshableCollections.length || !selectedRefreshCollectionIds.length"
+                        :disabled="bulkRefreshing || !refreshableCollections.length || !selectedRefreshCollectionIds.length"
                         @click="handleBulkRefreshPrices"
                     />
                 </div>
