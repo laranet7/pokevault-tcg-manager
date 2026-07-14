@@ -230,7 +230,7 @@ class CollectionPricingService:
                 resolution = self._resolve_market_price(payload, item.finish, item.pattern_variant)
             except PokemonTCGServiceError:
                 items_failed += 1
-                continue
+                resolution = self._build_snapshot_fallback_resolution(item)
 
             if resolution.base_price is not None:
                 item.base_price = resolution.base_price
@@ -443,6 +443,21 @@ class CollectionPricingService:
         if cache_key not in cache:
             cache[cache_key] = await self.pokemon_tcg_service.get_card_payload(external_id, api_source=api_source)
         return cache[cache_key]
+
+    def _build_snapshot_fallback_resolution(self, item: CollectionItem) -> PriceResolution:
+        return PriceResolution(
+            base_price=item.base_price,
+            currency=item.base_price_currency or "USD",
+            source="stored_value",
+            marketplace="stored_value",
+            tcgplayer_price=item.tcgplayer_price,
+            tcgplayer_currency=item.tcgplayer_currency,
+            tcgplayer_price_label=item.tcgplayer_price_label,
+            cardmarket_price=item.cardmarket_price,
+            cardmarket_currency=item.cardmarket_currency,
+            cardmarket_price_label=item.cardmarket_price_label,
+            raw_payload_json=None,
+        )
 
     def _resolve_market_price(self, payload: dict, finish: str | None, pattern_variant: str | None = None) -> PriceResolution:
         tcgplayer_prices = ((payload.get("tcgplayer") or {}).get("prices") or {})
