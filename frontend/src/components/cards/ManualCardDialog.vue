@@ -10,6 +10,7 @@ import { useToast } from 'primevue/usetoast';
 const DEFAULT_LANGUAGE = 'Ingles';
 const DEFAULT_CONDITION = 'Near Mint';
 const DEFAULT_FINISH = 'Normal';
+const IMAGE_UPLOAD_MAX_SIZE = 5_000_000;
 
 type StoredAddPreferences = {
     collectionId: number | null;
@@ -45,6 +46,7 @@ const loadingCollections = ref(false);
 const saving = ref(false);
 const collections = ref<Collection[]>([]);
 const selectedCollectionId = ref<number | null>(null);
+const imageUploadRef = ref();
 const imageFile = ref<File | null>(null);
 const imagePreviewUrl = ref<string | null>(null);
 
@@ -184,9 +186,14 @@ function revokeImagePreview(): void {
     imagePreviewUrl.value = null;
 }
 
-function clearImage(): void {
+function resetImageSelection(): void {
     imageFile.value = null;
     revokeImagePreview();
+}
+
+function clearImage(): void {
+    resetImageSelection();
+    imageUploadRef.value?.clear();
 }
 
 function parseInitialQuery(query: string): PrefilledManualCard {
@@ -274,9 +281,12 @@ function closeDialog(): void {
     emit('update:visible', false);
 }
 
-function handleImageSelection(event: Event): void {
-    const target = event.target as HTMLInputElement | null;
-    const file = target?.files?.[0] ?? null;
+function handleImageClear(): void {
+    resetImageSelection();
+}
+
+function handleImageSelection(event: { files?: File | File[] }): void {
+    const file = Array.isArray(event.files) ? (event.files[0] ?? null) : (event.files ?? null);
 
     revokeImagePreview();
     imageFile.value = file;
@@ -490,9 +500,50 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
                         <div class="flex flex-col gap-3">
-                            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="handleImageSelection" />
-                            <small class="text-surface-500">La imagen es opcional, pero si la subes quedara guardada localmente para vistas previas y exportaciones.</small>
-                            <Button v-if="imageFile" label="Quitar imagen" icon="pi pi-times" severity="secondary" outlined @click="clearImage" />
+                            <div class="rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50/70 dark:bg-surface-900/60 p-4 flex flex-col gap-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                        <i class="pi pi-image text-lg"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="font-medium">Sube tu imagen de referencia</div>
+                                        <div class="text-sm text-surface-500">
+                                            La imagen es opcional, pero si la subes quedara guardada localmente para vistas previas y exportaciones.
+                                        </div>
+                                    </div>
+                                </div>
+                                <FileUpload
+                                    ref="imageUploadRef"
+                                    mode="basic"
+                                    name="manualCardImage"
+                                    accept="image/png,image/jpeg,image/webp,image/gif"
+                                    :maxFileSize="IMAGE_UPLOAD_MAX_SIZE"
+                                    customUpload
+                                    chooseLabel="Elegir imagen"
+                                    chooseIcon="pi pi-upload"
+                                    class="w-full"
+                                    @select="handleImageSelection"
+                                    @clear="handleImageClear"
+                                />
+                                <div class="text-xs text-surface-500">
+                                    Formatos permitidos: PNG, JPG, WEBP y GIF. Maximo 5 MB.
+                                </div>
+                                <div
+                                    v-if="imageFile"
+                                    class="flex items-center justify-between gap-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-950 px-3 py-3"
+                                >
+                                    <div class="min-w-0">
+                                        <div class="font-medium truncate">{{ imageFile.name }}</div>
+                                        <div class="text-sm text-surface-500">
+                                            {{ (imageFile.size / 1024 / 1024).toFixed(2) }} MB
+                                        </div>
+                                    </div>
+                                    <Button label="Quitar imagen" icon="pi pi-times" severity="secondary" outlined size="small" @click="clearImage" />
+                                </div>
+                                <div v-else class="rounded-xl border border-dashed border-surface-300 dark:border-surface-600 px-3 py-4 text-sm text-surface-500 text-center">
+                                    Ningun archivo seleccionado.
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

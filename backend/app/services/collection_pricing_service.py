@@ -217,6 +217,13 @@ class CollectionPricingService:
             raise ValueError("Coleccion no encontrada.")
 
         items = await self.collection_items_repository.list_by_collection(collection_id)
+        return await self._refresh_collection_items(collection, items)
+
+    async def _refresh_collection_items(
+        self,
+        collection: Collection,
+        items: list[CollectionItem],
+    ) -> CollectionRefreshPricesResponse:
         captured_at = datetime.now(timezone.utc)
         card_cache: dict[str, dict] = {}
         processed_items = len(items)
