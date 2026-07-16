@@ -5,6 +5,7 @@ import { requestBlob } from '@/api/http';
 import type { Collection, UpdateCollectionPayload } from '@/types/collection';
 import type { CollectionItem, PatternVariant } from '@/types/collectionItem';
 import type { CollectionItemVariation, CollectionPriceVariation } from '@/types/pricing';
+import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
@@ -28,12 +29,12 @@ const collection = ref<Collection | null>(null);
 const items = ref<CollectionItem[]>([]);
 const variation = ref<CollectionPriceVariation | null>(null);
 const error = ref('');
-const selectedItems = ref<CollectionItem[]>([]);
 const editVisible = ref(false);
 const saving = ref(false);
 const selectedItem = ref<CollectionItem | null>(null);
 const optionsMenu = ref();
 const selectedOptionsMenu = ref();
+const columnsPopover = ref();
 const collectionDialogVisible = ref(false);
 const collaboratorsDialogVisible = ref(false);
 const exportDialogVisible = ref(false);
@@ -54,6 +55,46 @@ const localImageUrls = ref<Record<string, string>>({});
 const objectUrls = new Set<string>();
 
 type PatternVariantField = PatternVariant | 'none';
+type TablePreset = 'all' | 'missing_base' | 'up' | 'down' | 'no_history' | 'duplicates';
+type ColumnKey = 'pokedex' | 'quantity' | 'previousBase' | 'currentBase' | 'difference' | 'differencePercent' | 'trend' | 'salePrice';
+type SortField =
+    | 'cardName'
+    | 'pokedexSortValue'
+    | 'createdAtTimestamp'
+    | 'quantity'
+    | 'previousBase'
+    | 'currentBase'
+    | 'difference'
+    | 'differencePercent'
+    | 'trendRank'
+    | 'salePrice';
+
+interface CollectionTableRow {
+    id: number;
+    item: CollectionItem;
+    cardName: string;
+    setName: string;
+    cardNumber: string;
+    pokedexNumber: number | null;
+    pokedexSortValue: number;
+    createdAtTimestamp: number;
+    quantity: number;
+    previousBase: number | null;
+    currentBase: number | null;
+    difference: number | null;
+    differencePercent: number | null;
+    trend: CollectionItemVariation['trend'];
+    trendLabel: string;
+    trendRank: number;
+    salePrice: number | null;
+    currency: string;
+    hasBasePrice: boolean;
+    hasSalePrice: boolean;
+    hasHistory: boolean;
+    isDuplicate: boolean;
+}
+
+const globalFilterFields = ['cardName', 'setName', 'cardNumber', 'trendLabel'];
 
 const editForm = reactive({
     quantity: 1,
@@ -87,6 +128,43 @@ const saleStatusOptions = [
     { label: 'Reservada', value: 'reserved' },
     { label: 'Vendida', value: 'sold' }
 ];
+const trendOptions = [
+    { label: 'Subio', value: 'up' },
+    { label: 'Bajo', value: 'down' },
+    { label: 'Sin cambio', value: 'equal' },
+    { label: 'Sin historial', value: 'no_history' }
+];
+const tablePresetOptions = [
+    { label: 'Todo', value: 'all' },
+    { label: 'Sin precio', value: 'missing_base' },
+    { label: 'Suben', value: 'up' },
+    { label: 'Bajan', value: 'down' },
+    { label: 'Sin historial', value: 'no_history' },
+    { label: 'Duplicadas', value: 'duplicates' }
+];
+const sortFieldOptions = [
+    { label: 'Ingreso', value: 'createdAtTimestamp' },
+    { label: 'Base actual', value: 'currentBase' },
+    { label: 'Precio venta', value: 'salePrice' },
+    { label: 'Diferencia', value: 'difference' },
+    { label: 'Porcentaje', value: 'differencePercent' },
+    { label: 'Tendencia', value: 'trendRank' },
+    { label: 'Base anterior', value: 'previousBase' },
+    { label: 'Cantidad', value: 'quantity' },
+    { label: 'Pokedex', value: 'pokedexSortValue' },
+    { label: 'Nombre', value: 'cardName' }
+] as const;
+const defaultVisibleColumnKeys: ColumnKey[] = ['pokedex', 'previousBase', 'currentBase', 'trend', 'salePrice'];
+const columnVisibilityOptions = [
+    { label: 'Pokedex', value: 'pokedex' },
+    { label: 'Cantidad', value: 'quantity' },
+    { label: 'Base anterior', value: 'previousBase' },
+    { label: 'Base actual', value: 'currentBase' },
+    { label: 'Diferencia', value: 'difference' },
+    { label: 'Porcentaje', value: 'differencePercent' },
+    { label: 'Tendencia', value: 'trend' },
+    { label: 'Precio venta', value: 'salePrice' }
+] as const;
 
 const collectionId = computed(() => Number(route.params.id));
 const canEditCollection = computed(() => Boolean(collection.value?.can_edit));
@@ -98,6 +176,49 @@ const targetCollectionOptions = computed(() =>
 );
 const variationMap = computed<Record<number, CollectionItemVariation>>(() =>
     Object.fromEntries((variation.value?.item_variations || []).map((itemVariation) => [itemVariation.collection_item_id, itemVariation]))
+);
+const tableFilters = ref(createCollectionTableFilters());
+const tablePreset = ref<TablePreset>('all');
+const sortField = ref<SortField>('createdAtTimestamp');
+const sortOrder = ref<number>(-1);
+const visibleColumnKeys = ref<ColumnKey[]>([...defaultVisibleColumnKeys]);
+const visibleColumnSet = computed(() => new Set(visibleColumnKeys.value));
+const selectedItems = ref<CollectionTableRow[]>([]);
+const tableRows = computed<CollectionTableRow[]>(() =>
+    items.value.map((item) => {
+        const itemVariation = variationMap.value[item.id];
+        const previousBase = parseNumericValue(itemVariation?.previous_price);
+        const currentBase = parseNumericValue(itemVariation?.current_price ?? item.base_price);
+        const difference = parseNumericValue(itemVariation?.difference);
+        const differencePercent = parseNumericValue(itemVariation?.difference_percent);
+        const salePrice = parseNumericValue(item.sale_price);
+        const trend = itemVariation?.trend ?? 'no_history';
+
+        return {
+            id: item.id,
+            item,
+            cardName: item.card.name,
+            setName: item.card.set_name || '',
+            cardNumber: item.card.number,
+            pokedexNumber: item.card.pokedex_number ?? null,
+            pokedexSortValue: item.card.pokedex_number ?? Number.MAX_SAFE_INTEGER,
+            createdAtTimestamp: new Date(item.created_at).getTime(),
+            quantity: Number(item.quantity ?? 0),
+            previousBase,
+            currentBase,
+            difference,
+            differencePercent,
+            trend,
+            trendLabel: variationLabel(itemVariation),
+            trendRank: trendToRank(trend),
+            salePrice,
+            currency: itemVariation?.currency || item.base_price_currency || 'USD',
+            hasBasePrice: currentBase !== null,
+            hasSalePrice: salePrice !== null,
+            hasHistory: trend !== 'no_history',
+            isDuplicate: Number(item.quantity ?? 0) > 1
+        };
+    })
 );
 const estimatedTotal = computed(() =>
     items.value.reduce((sum, item) => {
@@ -185,6 +306,45 @@ const selectedCollectionOptions = computed<MenuItem[]>(() =>
 
 function imageCacheKey(cardId: number, size: 'small' | 'large'): string {
     return `${cardId}:${size}`;
+}
+
+function createCollectionTableFilters() {
+    return {
+        global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        cardName: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        quantity: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+        previousBase: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+        currentBase: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+        difference: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+        differencePercent: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+        trend: { value: null, matchMode: FilterMatchMode.IN },
+        salePrice: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+        hasBasePrice: { value: null, matchMode: FilterMatchMode.EQUALS },
+        hasHistory: { value: null, matchMode: FilterMatchMode.EQUALS },
+        isDuplicate: { value: null, matchMode: FilterMatchMode.EQUALS }
+    };
+}
+
+function parseNumericValue(value: number | string | null | undefined): number | null {
+    if (value === null || value === undefined || value === '') {
+        return null;
+    }
+
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+}
+
+function trendToRank(trend: CollectionItemVariation['trend']): number {
+    if (trend === 'up') {
+        return 3;
+    }
+    if (trend === 'equal') {
+        return 2;
+    }
+    if (trend === 'down') {
+        return 1;
+    }
+    return 0;
 }
 
 function revokeObjectUrls(): void {
@@ -340,6 +500,74 @@ function resolveRarityLabel(item: CollectionItem): string | null {
     return rarity;
 }
 
+function clearTableFilters(): void {
+    tableFilters.value = createCollectionTableFilters();
+    tablePreset.value = 'all';
+}
+
+function isColumnVisible(columnKey: ColumnKey): boolean {
+    return visibleColumnSet.value.has(columnKey);
+}
+
+function applyTablePreset(preset: TablePreset): void {
+    tableFilters.value.hasBasePrice.value = null;
+    tableFilters.value.hasHistory.value = null;
+    tableFilters.value.isDuplicate.value = null;
+    tableFilters.value.trend.value = null;
+
+    if (preset === 'missing_base') {
+        tableFilters.value.hasBasePrice.value = false;
+        return;
+    }
+
+    if (preset === 'up') {
+        tableFilters.value.trend.value = ['up'];
+        return;
+    }
+
+    if (preset === 'down') {
+        tableFilters.value.trend.value = ['down'];
+        return;
+    }
+
+    if (preset === 'no_history') {
+        tableFilters.value.hasHistory.value = false;
+        return;
+    }
+
+    if (preset === 'duplicates') {
+        tableFilters.value.isDuplicate.value = true;
+    }
+}
+
+function toggleSortOrder(): void {
+    sortOrder.value = sortOrder.value === 1 ? -1 : 1;
+}
+
+function handleTableSort(event: { sortField?: string; sortOrder?: number | null }): void {
+    if (!event.sortField) {
+        return;
+    }
+
+    sortField.value = event.sortField as SortField;
+    sortOrder.value = event.sortOrder === 1 ? 1 : -1;
+}
+
+function applyCollectionDefaultSort(): void {
+    if (collection.value?.sort_by_pokedex) {
+        sortField.value = 'pokedexSortValue';
+        sortOrder.value = 1;
+        return;
+    }
+
+    sortField.value = 'createdAtTimestamp';
+    sortOrder.value = -1;
+}
+
+function toggleColumnsPopover(event: Event): void {
+    columnsPopover.value?.toggle(event);
+}
+
 function normalizeEditForm(item: CollectionItem): void {
     editForm.quantity = item.quantity;
     editForm.language = item.language || 'Espanol';
@@ -398,6 +626,7 @@ async function loadPage(): Promise<void> {
         items.value = itemsResponse;
         variation.value = variationResponse;
         selectedItems.value = [];
+        applyCollectionDefaultSort();
         void hydrateCardThumbnails(itemsResponse);
     } catch (err) {
         error.value = err instanceof Error ? err.message : 'No fue posible cargar la coleccion.';
@@ -557,7 +786,7 @@ async function handleMoveSelectedItems(): Promise<void> {
     movingItems.value = true;
     try {
         const response = await moveCollectionItems({
-            item_ids: selectedItems.value.map((item) => item.id),
+            item_ids: selectedItems.value.map((row) => row.item.id),
             target_collection_id: targetCollectionId.value
         });
         toast.add({
@@ -605,6 +834,10 @@ watch(
         loadPage();
     }
 );
+
+watch(tablePreset, (preset) => {
+    applyTablePreset(preset);
+});
 
 onMounted(loadPage);
 onBeforeUnmount(() => {
@@ -827,83 +1060,251 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div v-else class="card">
-                        <DataTable v-model:selection="selectedItems" :value="items" paginator :rows="10" dataKey="id" responsiveLayout="scroll">
+                        <DataTable
+                            v-model:selection="selectedItems"
+                            v-model:filters="tableFilters"
+                            :value="tableRows"
+                            :filters="tableFilters"
+                            paginator
+                            :rows="10"
+                            dataKey="id"
+                            responsiveLayout="scroll"
+                            filterDisplay="menu"
+                            :globalFilterFields="globalFilterFields"
+                            :sortField="sortField"
+                            :sortOrder="sortOrder"
+                            rowHover
+                            @sort="handleTableSort"
+                        >
+                            <template #header>
+                                <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+                                    <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                                        <Button type="button" icon="pi pi-filter-slash" label="Limpiar filtros" outlined @click="clearTableFilters" />
+                                        <IconField>
+                                            <InputIcon>
+                                                <i class="pi pi-search" />
+                                            </InputIcon>
+                                            <InputText v-model="tableFilters.global.value" placeholder="Buscar por carta, set o codigo" class="w-full sm:w-80" />
+                                        </IconField>
+                                    </div>
+                                    <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+                                        <SelectButton
+                                            v-model="tablePreset"
+                                            :options="tablePresetOptions"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            :allowEmpty="false"
+                                        />
+                                        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                                            <span class="text-sm text-surface-500 whitespace-nowrap">Ordenar por</span>
+                                            <Select v-model="sortField" :options="sortFieldOptions" optionLabel="label" optionValue="value" class="min-w-56" />
+                                            <Button
+                                                type="button"
+                                                :icon="sortOrder === 1 ? 'pi pi-sort-amount-up-alt' : 'pi pi-sort-amount-down'"
+                                                :label="sortOrder === 1 ? 'Asc' : 'Desc'"
+                                                outlined
+                                                @click="toggleSortOrder"
+                                            />
+                                            <Button type="button" icon="pi pi-table" label="Columnas" outlined @click="toggleColumnsPopover" />
+                                            <Popover ref="columnsPopover">
+                                                <div class="flex flex-col gap-3 min-w-60">
+                                                    <div>
+                                                        <div class="font-medium">Columnas visibles</div>
+                                                        <div class="text-sm text-surface-500">Oculta o muestra datos sin perder filtros ni acciones.</div>
+                                                    </div>
+                                                    <div class="grid grid-cols-1 gap-3">
+                                                        <div v-for="column in columnVisibilityOptions" :key="column.value" class="flex items-center gap-3">
+                                                            <Checkbox v-model="visibleColumnKeys" :inputId="`column-${column.value}`" :value="column.value" />
+                                                            <label :for="`column-${column.value}`" class="cursor-pointer">{{ column.label }}</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </Popover>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            <template #empty> No hay cartas que coincidan con los filtros aplicados. </template>
                             <Column v-if="canEditCollection" selectionMode="multiple" headerStyle="width: 3rem" />
-                            <Column header="Carta" style="min-width: 20rem">
+                            <Column field="cardName" header="Carta" sortable filter style="min-width: 22rem" :filterMenuStyle="{ width: '18rem' }">
                                 <template #body="{ data }">
                                     <div class="flex items-center gap-4">
                                         <button
                                             type="button"
                                             class="group flex-shrink-0 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 p-1 transition hover:border-primary cursor-pointer"
-                                            @click="openPreview(data)"
+                                            @click="openPreview(data.item)"
                                         >
                                             <img
-                                                v-if="getCardImageSrc(data)"
-                                                :src="getCardImageSrc(data) || undefined"
-                                                :alt="data.card.name"
+                                                v-if="getCardImageSrc(data.item)"
+                                                :src="getCardImageSrc(data.item) || undefined"
+                                                :alt="data.item.card.name"
                                                 class="h-20 w-14 rounded-md object-contain"
                                             />
                                             <div v-else class="h-20 w-14 rounded-md flex items-center justify-center text-xs text-surface-500">Sin imagen</div>
                                         </button>
                                         <div>
-                                            <div class="font-semibold text-lg">{{ data.card.name }}</div>
-                                            <div class="text-surface-500">{{ data.card.set_name }} - {{ data.card.number }}</div>
+                                            <div class="font-semibold text-lg">{{ data.cardName }}</div>
+                                            <div class="text-surface-500">{{ data.setName || 'Sin set' }} - {{ data.cardNumber }}</div>
                                             <div class="flex flex-wrap items-center gap-2 mt-2">
-                                                <Tag :value="resolveFinishLabel(data)" severity="info" />
-                                                <Tag v-if="resolvePatternVariantLabel(data.pattern_variant)" :value="resolvePatternVariantLabel(data.pattern_variant) || undefined" severity="warn" />
-                                                <Tag v-if="resolveRarityLabel(data)" :value="resolveRarityLabel(data) || undefined" severity="contrast" />
+                                                <Tag :value="resolveFinishLabel(data.item)" severity="info" />
+                                                <Tag v-if="resolvePatternVariantLabel(data.item.pattern_variant)" :value="resolvePatternVariantLabel(data.item.pattern_variant) || undefined" severity="warn" />
+                                                <Tag v-if="resolveRarityLabel(data.item)" :value="resolveRarityLabel(data.item) || undefined" severity="contrast" />
                                             </div>
                                         </div>
                                     </div>
                                 </template>
-                            </Column>
-                            <Column header="Pokedex" style="min-width: 8rem">
-                                <template #body="{ data }">
-                                    {{ data.card.pokedex_number ? `#${data.card.pokedex_number}` : '-' }}
+                                <template #filter="{ filterModel }">
+                                    <InputText v-model="filterModel.value" type="text" placeholder="Buscar carta" />
                                 </template>
                             </Column>
-                            <Column field="quantity" header="Cantidad" />
-                            <Column header="Base anterior" style="min-width: 10rem">
+                            <Column v-if="isColumnVisible('pokedex')" field="pokedexNumber" header="Pokedex" sortable sortField="pokedexSortValue" style="min-width: 8rem">
                                 <template #body="{ data }">
-                                    {{ formatMoney(variationMap[data.id]?.previous_price, variationMap[data.id]?.currency || data.base_price_currency || 'USD') }}
+                                    {{ data.pokedexNumber ? `#${data.pokedexNumber}` : '-' }}
                                 </template>
                             </Column>
-                            <Column header="Base actual" style="min-width: 10rem">
-                                <template #body="{ data }">
-                                    {{ formatMoney(variationMap[data.id]?.current_price ?? data.base_price, variationMap[data.id]?.currency || data.base_price_currency || 'USD') }}
+                            <Column
+                                v-if="isColumnVisible('quantity')"
+                                field="quantity"
+                                header="Cantidad"
+                                sortable
+                                filter
+                                filterField="quantity"
+                                dataType="numeric"
+                                style="min-width: 9rem"
+                            >
+                                <template #filter="{ filterModel }">
+                                    <InputNumber v-model="filterModel.value" mode="decimal" :minFractionDigits="0" :maxFractionDigits="0" inputClass="w-full" />
                                 </template>
                             </Column>
-                            <Column header="Diferencia" style="min-width: 10rem">
+                            <Column
+                                v-if="isColumnVisible('previousBase')"
+                                field="previousBase"
+                                header="Base anterior"
+                                sortable
+                                filter
+                                filterField="previousBase"
+                                dataType="numeric"
+                                style="min-width: 10rem"
+                            >
                                 <template #body="{ data }">
-                                    <span v-if="variationMap[data.id]?.difference !== null">
-                                        {{ formatMoney(variationMap[data.id]?.difference, variationMap[data.id]?.currency || data.base_price_currency || 'USD') }}
+                                    <span v-if="data.previousBase !== null">
+                                        {{ formatMoney(data.previousBase, data.currency) }}
                                     </span>
                                     <span v-else class="text-surface-500">-</span>
                                 </template>
+                                <template #filter="{ filterModel }">
+                                    <InputNumber v-model="filterModel.value" mode="decimal" :minFractionDigits="0" :maxFractionDigits="2" inputClass="w-full" />
+                                </template>
                             </Column>
-                            <Column header="%" style="min-width: 8rem">
+                            <Column
+                                v-if="isColumnVisible('currentBase')"
+                                field="currentBase"
+                                header="Base actual"
+                                sortable
+                                filter
+                                filterField="currentBase"
+                                dataType="numeric"
+                                style="min-width: 10rem"
+                            >
                                 <template #body="{ data }">
-                                    <span v-if="variationMap[data.id]?.difference_percent !== null">
-                                        {{ formatPercent(variationMap[data.id]?.difference_percent) }}
+                                    <span v-if="data.currentBase !== null">
+                                        {{ formatMoney(data.currentBase, data.currency) }}
                                     </span>
                                     <span v-else class="text-surface-500">-</span>
                                 </template>
-                            </Column>
-                            <Column header="Tendencia" style="min-width: 9rem">
-                                <template #body="{ data }">
-                                    <Tag :severity="variationSeverity(variationMap[data.id]?.trend)" :value="variationLabel(variationMap[data.id])" />
+                                <template #filter="{ filterModel }">
+                                    <InputNumber v-model="filterModel.value" mode="decimal" :minFractionDigits="0" :maxFractionDigits="2" inputClass="w-full" />
                                 </template>
                             </Column>
-                            <Column header="Precio venta">
-                                <template #body="{ data }">{{ data.sale_price ? formatMoney(Number(data.sale_price), data.base_price_currency || 'USD') : '-' }}</template>
+                            <Column
+                                v-if="isColumnVisible('difference')"
+                                field="difference"
+                                header="Diferencia"
+                                sortable
+                                filter
+                                filterField="difference"
+                                dataType="numeric"
+                                style="min-width: 10rem"
+                            >
+                                <template #body="{ data }">
+                                    <span v-if="data.difference !== null">
+                                        {{ formatMoney(data.difference, data.currency) }}
+                                    </span>
+                                    <span v-else class="text-surface-500">-</span>
+                                </template>
+                                <template #filter="{ filterModel }">
+                                    <InputNumber v-model="filterModel.value" mode="decimal" :minFractionDigits="0" :maxFractionDigits="2" inputClass="w-full" />
+                                </template>
+                            </Column>
+                            <Column
+                                v-if="isColumnVisible('differencePercent')"
+                                field="differencePercent"
+                                header="%"
+                                sortable
+                                filter
+                                filterField="differencePercent"
+                                dataType="numeric"
+                                style="min-width: 8rem"
+                            >
+                                <template #body="{ data }">
+                                    <span v-if="data.differencePercent !== null">
+                                        {{ formatPercent(data.differencePercent) }}
+                                    </span>
+                                    <span v-else class="text-surface-500">-</span>
+                                </template>
+                                <template #filter="{ filterModel }">
+                                    <InputNumber v-model="filterModel.value" mode="decimal" :minFractionDigits="0" :maxFractionDigits="2" inputClass="w-full" />
+                                </template>
+                            </Column>
+                            <Column
+                                v-if="isColumnVisible('trend')"
+                                field="trendRank"
+                                header="Tendencia"
+                                sortable
+                                filterField="trend"
+                                filter
+                                style="min-width: 10rem"
+                                :showFilterMatchModes="false"
+                                :filterMenuStyle="{ width: '14rem' }"
+                            >
+                                <template #body="{ data }">
+                                    <Tag :severity="variationSeverity(data.trend)" :value="data.trendLabel" />
+                                </template>
+                                <template #filter="{ filterModel }">
+                                    <MultiSelect
+                                        v-model="filterModel.value"
+                                        :options="trendOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        placeholder="Cualquiera"
+                                        display="chip"
+                                    />
+                                </template>
+                            </Column>
+                            <Column
+                                v-if="isColumnVisible('salePrice')"
+                                field="salePrice"
+                                header="Precio venta"
+                                sortable
+                                filter
+                                filterField="salePrice"
+                                dataType="numeric"
+                                style="min-width: 10rem"
+                            >
+                                <template #body="{ data }">
+                                    {{ data.salePrice !== null ? formatMoney(data.salePrice, data.item.base_price_currency || data.currency || 'USD') : '-' }}
+                                </template>
+                                <template #filter="{ filterModel }">
+                                    <InputNumber v-model="filterModel.value" mode="decimal" :minFractionDigits="0" :maxFractionDigits="2" inputClass="w-full" />
+                                </template>
                             </Column>
                             <Column header="Acciones" style="min-width: 12rem">
                                 <template #body="{ data }">
                                     <div class="flex gap-2">
-                                        <Button icon="pi pi-eye" rounded text @click="openPreview(data)" />
-                                        <Button icon="pi pi-chart-line" rounded text @click="openPriceHistory(data)" />
-                                        <Button v-if="canEditCollection" icon="pi pi-pencil" rounded text @click="openEdit(data)" />
-                                        <Button v-if="canEditCollection" icon="pi pi-trash" rounded text severity="danger" @click="removeItem(data)" />
+                                        <Button icon="pi pi-eye" rounded text @click="openPreview(data.item)" />
+                                        <Button icon="pi pi-chart-line" rounded text @click="openPriceHistory(data.item)" />
+                                        <Button v-if="canEditCollection" icon="pi pi-pencil" rounded text @click="openEdit(data.item)" />
+                                        <Button v-if="canEditCollection" icon="pi pi-trash" rounded text severity="danger" @click="removeItem(data.item)" />
                                     </div>
                                 </template>
                             </Column>

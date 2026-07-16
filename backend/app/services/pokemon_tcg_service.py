@@ -52,15 +52,16 @@ class PokemonTCGService:
         printed_total = str(int(re.sub(r"\D", "", match.group(2))))
         return number, printed_total
 
-    async def search_by_code(self, code: str) -> list[CardSearchResult]:
+    async def search_by_code(self, code: str, *, include_tcgdex: bool = False) -> list[CardSearchResult]:
         number, printed_total = self.parse_card_code(code)
         params = {"q": f"number:{number} set.printedTotal:{printed_total}"}
         return await self._search_with_fallback(
             lambda: self._search(params, code),
             lambda: self._search_tcgdex_by_number_and_total(number, printed_total),
+            include_fallback_results=include_tcgdex,
         )
 
-    async def search_by_name(self, name: str) -> list[CardSearchResult]:
+    async def search_by_name(self, name: str, *, include_tcgdex: bool = False) -> list[CardSearchResult]:
         normalized_name = " ".join(name.strip().split())
         if not normalized_name:
             raise PokemonTCGServiceError("Debes indicar un nombre para buscar.")
@@ -74,17 +75,19 @@ class PokemonTCGService:
         return await self._search_with_fallback(
             lambda: self._search(params, normalized_name),
             lambda: self._search_tcgdex_by_name(normalized_name),
+            include_fallback_results=include_tcgdex,
         )
 
-    async def search_promo_by_code(self, code: str) -> list[CardSearchResult]:
+    async def search_promo_by_code(self, code: str, *, include_tcgdex: bool = False) -> list[CardSearchResult]:
         number = self.parse_promo_code(code)
         params = {"q": f"number:{number} set.id:{PROMO_SET_ID}"}
         return await self._search_with_fallback(
             lambda: self._search(params, f"SVP/{number}"),
             lambda: self._search_tcgdex_by_set_and_local_id(PROMO_SET_ID, number),
+            include_fallback_results=include_tcgdex,
         )
 
-    async def search_promo_by_name(self, name: str) -> list[CardSearchResult]:
+    async def search_promo_by_name(self, name: str, *, include_tcgdex: bool = False) -> list[CardSearchResult]:
         normalized_name = " ".join(name.strip().split())
         if not normalized_name:
             raise PokemonTCGServiceError("Debes indicar un nombre para buscar promos.")
@@ -98,17 +101,19 @@ class PokemonTCGService:
         return await self._search_with_fallback(
             lambda: self._search(params, normalized_name),
             lambda: self._search_tcgdex_by_name(normalized_name, set_id=PROMO_SET_ID),
+            include_fallback_results=include_tcgdex,
         )
 
-    async def search_special_by_code(self, code: str) -> list[CardSearchResult]:
+    async def search_special_by_code(self, code: str, *, include_tcgdex: bool = False) -> list[CardSearchResult]:
         number, printed_total = self.parse_special_card_code(code)
         params = {"q": f'number:"{number}" set.printedTotal:{printed_total}'}
         return await self._search_with_fallback(
             lambda: self._search(params, code),
             lambda: self._search_tcgdex_by_number_and_total(number, printed_total),
+            include_fallback_results=include_tcgdex,
         )
 
-    async def search_by_card_number(self, number: str) -> list[CardSearchResult]:
+    async def search_by_card_number(self, number: str, *, include_tcgdex: bool = False) -> list[CardSearchResult]:
         normalized_number = number.strip().upper()
         if not ALPHANUMERIC_NUMBER_REGEX.fullmatch(normalized_number):
             raise InvalidCardCodeError("El numero de carta debe tener formato TG01, GG12 o similar.")
@@ -117,9 +122,10 @@ class PokemonTCGService:
         return await self._search_with_fallback(
             lambda: self._search(params, normalized_number),
             lambda: self._search_tcgdex_by_local_id(normalized_number),
+            include_fallback_results=include_tcgdex,
         )
 
-    async def search_general(self, query: str) -> list[CardSearchResult]:
+    async def search_general(self, query: str, *, include_tcgdex: bool = False) -> list[CardSearchResult]:
         normalized_query = " ".join(query.strip().split())
         if not normalized_query:
             raise PokemonTCGServiceError("Debes indicar un termino para buscar.")
@@ -127,22 +133,22 @@ class PokemonTCGService:
         upper_query = normalized_query.upper()
 
         if CARD_CODE_REGEX.fullmatch(normalized_query):
-            return await self.search_by_code(normalized_query)
+            return await self.search_by_code(normalized_query, include_tcgdex=include_tcgdex)
 
         if upper_query.startswith("SVP/") or upper_query.startswith("PR-SV/"):
-            return await self.search_promo_by_code(upper_query)
+            return await self.search_promo_by_code(upper_query, include_tcgdex=include_tcgdex)
 
         special_match = SPECIAL_CARD_CODE_REGEX.fullmatch(upper_query)
         if special_match:
             left_code = special_match.group(1)
             if left_code.startswith("SVP"):
-                return await self.search_promo_by_code(upper_query)
-            return await self.search_special_by_code(upper_query)
+                return await self.search_promo_by_code(upper_query, include_tcgdex=include_tcgdex)
+            return await self.search_special_by_code(upper_query, include_tcgdex=include_tcgdex)
 
         if ALPHANUMERIC_NUMBER_REGEX.fullmatch(upper_query):
             if upper_query.startswith("SVP"):
-                return await self.search_promo_by_code(upper_query)
-            return await self.search_by_card_number(upper_query)
+                return await self.search_promo_by_code(upper_query, include_tcgdex=include_tcgdex)
+            return await self.search_by_card_number(upper_query, include_tcgdex=include_tcgdex)
 
         general_set_reference = GENERAL_SET_REFERENCE_REGEX.fullmatch(normalized_query)
         if general_set_reference:
@@ -152,7 +158,7 @@ class PokemonTCGService:
             direct_match = await self._search_tcgdex_by_set_and_local_id(set_id, local_id)
             if direct_match:
                 return direct_match
-            return await self.search_by_name(card_name)
+            return await self.search_by_name(card_name, include_tcgdex=include_tcgdex)
 
         set_local_reference = SET_LOCAL_ID_REFERENCE_REGEX.fullmatch(normalized_query)
         if set_local_reference:
@@ -162,7 +168,7 @@ class PokemonTCGService:
             if direct_match:
                 return direct_match
 
-        return await self.search_by_name(normalized_query)
+        return await self.search_by_name(normalized_query, include_tcgdex=include_tcgdex)
 
     async def get_card_payload(self, external_id: str, api_source: str = "pokemon_tcg") -> dict[str, Any]:
         if api_source == "tcgdex":
@@ -198,6 +204,8 @@ class PokemonTCGService:
         self,
         primary_search: Any,
         fallback_search: Any,
+        *,
+        include_fallback_results: bool = False,
     ) -> list[CardSearchResult]:
         primary_error: PokemonTCGServiceError | None = None
 
@@ -207,13 +215,16 @@ class PokemonTCGService:
             primary_error = exc
             primary_results = []
 
-        if primary_results:
+        if primary_results and not include_fallback_results:
             return primary_results
 
         try:
             fallback_results = await fallback_search()
         except PokemonTCGServiceError:
             fallback_results = []
+
+        if primary_results and include_fallback_results:
+            return self._merge_search_results(primary_results, fallback_results)
 
         if fallback_results:
             return fallback_results
@@ -222,6 +233,76 @@ class PokemonTCGService:
             raise primary_error
 
         return []
+
+    def _merge_search_results(
+        self,
+        primary_results: list[CardSearchResult],
+        fallback_results: list[CardSearchResult],
+    ) -> list[CardSearchResult]:
+        merged: list[CardSearchResult] = []
+        positions: dict[str, int] = {}
+
+        for result in primary_results:
+            identity = self._build_result_identity(result)
+            positions[identity] = len(merged)
+            merged.append(result)
+
+        for result in fallback_results:
+            identity = self._build_result_identity(result)
+            existing_index = positions.get(identity)
+            if existing_index is None:
+                positions[identity] = len(merged)
+                merged.append(result)
+                continue
+
+            merged[existing_index] = self._merge_card_result(merged[existing_index], result)
+
+        return merged
+
+    def _build_result_identity(self, result: CardSearchResult) -> str:
+        set_id = (result.set_id or "").strip().lower()
+        number = self._normalize_local_id(result.number)
+        printed_total = str(result.printed_total or "").strip()
+        normalized_name = " ".join(result.name.strip().lower().split())
+
+        if set_id and number:
+            return f"{set_id}:{number}:{printed_total}"
+
+        if normalized_name and number:
+            return f"{normalized_name}:{number}"
+
+        return f"{result.api_source}:{result.external_id}"
+
+    def _merge_card_result(self, primary: CardSearchResult, secondary: CardSearchResult) -> CardSearchResult:
+        merged_prices = self._merge_card_prices(primary.prices, secondary.prices)
+        merged_raw_prices = {
+            "tcgplayer": primary.raw_prices.get("tcgplayer") or secondary.raw_prices.get("tcgplayer"),
+            "cardmarket": primary.raw_prices.get("cardmarket") or secondary.raw_prices.get("cardmarket"),
+        }
+
+        return primary.model_copy(
+            update={
+                "pokedex_number": primary.pokedex_number or secondary.pokedex_number,
+                "rarity": primary.rarity or secondary.rarity,
+                "image_small": primary.image_small or secondary.image_small,
+                "image_large": primary.image_large or secondary.image_large,
+                "prices": merged_prices,
+                "raw_prices": merged_raw_prices,
+            }
+        )
+
+    def _merge_card_prices(self, primary_prices: list[CardPrice], secondary_prices: list[CardPrice]) -> list[CardPrice]:
+        merged: list[CardPrice] = []
+        seen: set[tuple[str, str, str]] = set()
+
+        for price in [*primary_prices, *secondary_prices]:
+            key = (price.source, price.currency, price.label)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(price)
+
+        return merged
 
     async def _search(self, params: dict[str, str], query_label: str) -> list[CardSearchResult]:
         headers: dict[str, str] = {

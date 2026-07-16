@@ -24,6 +24,7 @@ async def search_cards(
     name: str | None = Query(None, description="Nombre o palabras clave de la carta"),
     promo_code: str | None = Query(None, description="Codigo promo en formato 088 o SVP/088"),
     promo_name: str | None = Query(None, description="Nombre de carta dentro de Scarlet & Violet Promos"),
+    include_tcgdex: bool = Query(False, description="Incluye resultados de TCGdex aunque la API principal encuentre coincidencias."),
     _: User = Depends(get_current_user),
 ) -> CardSearchResponse:
     try:
@@ -35,19 +36,19 @@ async def search_cards(
             )
         if general:
             query = general
-            results = await service.search_general(general)
+            results = await service.search_general(general, include_tcgdex=include_tcgdex)
         elif code:
             query = code
-            results = await service.search_by_code(code)
+            results = await service.search_by_code(code, include_tcgdex=include_tcgdex)
         elif name:
             query = name
-            results = await service.search_by_name(name)
+            results = await service.search_by_name(name, include_tcgdex=include_tcgdex)
         elif promo_code:
             query = promo_code
-            results = await service.search_promo_by_code(promo_code)
+            results = await service.search_promo_by_code(promo_code, include_tcgdex=include_tcgdex)
         elif promo_name:
             query = promo_name
-            results = await service.search_promo_by_name(promo_name)
+            results = await service.search_promo_by_name(promo_name, include_tcgdex=include_tcgdex)
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

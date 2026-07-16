@@ -17,6 +17,7 @@ const router = useRouter();
 const toast = useToast();
 const mode = ref<'general' | 'code' | 'name' | 'promo' | 'inventory'>('general');
 const query = ref('');
+const includeTcgdex = ref(false);
 const loading = ref(false);
 const searched = ref(false);
 const error = ref('');
@@ -297,14 +298,14 @@ async function search(): Promise<void> {
         } else {
             const response = await searchCards(
                 mode.value === 'general'
-                    ? { general: normalizedQuery }
+                    ? { general: normalizedQuery, include_tcgdex: includeTcgdex.value }
                     : mode.value === 'code'
-                    ? { code: normalizeCodeForSearch(normalizedQuery) }
+                    ? { code: normalizeCodeForSearch(normalizedQuery), include_tcgdex: includeTcgdex.value }
                     : mode.value === 'promo'
                       ? promoMode.value === 'code'
-                          ? { promo_code: normalizePromoCodeForSearch(normalizedQuery) }
-                          : { promo_name: normalizedQuery }
-                      : { name: normalizedQuery }
+                          ? { promo_code: normalizePromoCodeForSearch(normalizedQuery), include_tcgdex: includeTcgdex.value }
+                          : { promo_name: normalizedQuery, include_tcgdex: includeTcgdex.value }
+                      : { name: normalizedQuery, include_tcgdex: includeTcgdex.value }
             );
             results.value = response.results;
         }
@@ -531,7 +532,7 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div class="flex flex-col lg:flex-row lg:items-end gap-4">
+                <div class="flex flex-col lg:flex-row lg:items-start gap-4">
                     <div class="flex-1">
                         <label class="block text-sm mb-2">{{ inputLabel }}</label>
                         <InputText v-model="query" :placeholder="inputPlaceholder" class="w-full" @keyup.enter="search" />
@@ -546,9 +547,21 @@ onBeforeUnmount(() => {
                             Puedes escribir `088` o `SVP/088` y el campo lo normalizara automaticamente.
                         </small>
                     </div>
-                    <div class="flex gap-3">
+                    <div class="flex gap-3 lg:self-start lg:pt-8">
                         <Button v-if="mode !== 'inventory'" label="Crear manualmente" icon="pi pi-pencil" severity="secondary" outlined @click="openManualDialog" />
                         <Button label="Buscar" icon="pi pi-search" :loading="loading" @click="search" />
+                    </div>
+                </div>
+
+                <div v-if="mode !== 'inventory'" class="rounded-2xl border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 p-4">
+                    <div class="flex items-start gap-3">
+                        <ToggleSwitch v-model="includeTcgdex" inputId="include-tcgdex-search" />
+                        <div class="flex-1">
+                            <label for="include-tcgdex-search" class="block font-medium cursor-pointer">Incluir resultados de TCGdex</label>
+                            <p class="text-sm text-surface-500 mb-0">
+                                Si la API principal encuentra cartas, tambien sumaremos coincidencias adicionales de TCGdex y evitaremos duplicados evidentes.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
